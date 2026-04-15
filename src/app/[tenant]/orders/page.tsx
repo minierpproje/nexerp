@@ -166,11 +166,14 @@ export default function TenantOrdersPage() {
               style={{ padding: '9px 18px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
               {showForm ? 'İptal' : '+ Yeni Sipariş'}
             </button>
-            <form action="/auth/signout" method="post">
-              <button style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-                Çıkış
-              </button>
-            </form>
+            <button onClick={async () => {
+  const { createClient } = await import('@/lib/supabase/client')
+  const supabase = createClient()
+  await supabase.auth.signOut()
+  window.location.href = `/${slug}/login`
+}} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+  Çıkış
+</button>
           </div>
         </div>
 

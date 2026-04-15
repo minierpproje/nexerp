@@ -1,30 +1,49 @@
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-export default async function PlatformDashboard() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export default function PlatformDashboard() {
+  const router = useRouter()
+  const supabase = createClient()
+  const [profile, setProfile] = useState<any>(null)
+  const [tenants, setTenants] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  if (!user) redirect('/login')
+  useEffect(() => { loadData() }, [])
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('full_name')
-    .eq('id', user.id)
-    .single()
+  async function loadData() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
 
-  const { data: tenants } = await supabase
-    .from('tenants')
-    .select('*')
-    .eq('owner_id', user.id)
-    .order('created_at', { ascending: false })
+    const { data: profileData } = await supabase
+      .from('profiles').select('full_name').eq('id', user.id).single()
+    setProfile(profileData)
+
+    const { data: tenantsData } = await supabase
+      .from('tenants').select('*').eq('owner_id', user.id).order('created_at', { ascending: false })
+    setTenants(tenantsData || [])
+    setLoading(false)
+  }
+
+  async function handleSignOut() {
+    await supabase.auth.signOut()
+    window.location.href = '/login'
+  }
 
   const moduleLabels: Record<string, string> = {
     dealer_orders: 'Bayi Sipariş',
     activity: 'Aktivite',
     inventory: 'Stok',
   }
+
+  if (loading) return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f2ec' }}>
+      <p style={{ color: '#888' }}>Yükleniyor...</p>
+    </div>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: '#f5f2ec', padding: '40px 32px' }}>
@@ -41,15 +60,13 @@ export default async function PlatformDashboard() {
             <Link href="/new-tenant" style={{ padding: '9px 18px', background: '#0f0f0f', color: 'white', borderRadius: 8, fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>
               + Yeni Tenant
             </Link>
-            <form action="/auth/signout" method="post">
-              <button style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-                Çıkış
-              </button>
-            </form>
+            <button onClick={handleSignOut} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+              Çıkış
+            </button>
           </div>
         </div>
 
-        {!tenants || tenants.length === 0 ? (
+        {tenants.length === 0 ? (
           <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.1)', borderRadius: 14, padding: 48, textAlign: 'center' }}>
             <div style={{ fontFamily: 'Georgia, serif', fontSize: 22, marginBottom: 10 }}>Henüz tenant yok</div>
             <p style={{ fontSize: 14, color: '#888', marginBottom: 24 }}>İlk tenantını oluştur ve modülünü kur.</p>

@@ -83,9 +83,14 @@ export default function TenantDashboard() {
           <div style={{ display: 'flex', gap: 10 }}>
             <Link href={`/${slug}/dealers`} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f' }}>Bayiler</Link>
             <Link href={`/${slug}/products`} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f' }}>Ürünler</Link>
-            <form action="/auth/signout" method="post" style={{ display: 'inline' }}>
-              <button style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Çıkış</button>
-            </form>
+            <button onClick={async () => {
+  const { createClient } = await import('@/lib/supabase/client')
+  const supabase = createClient()
+  await supabase.auth.signOut()
+  window.location.href = '/login'
+}} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
+  Çıkış
+</button>
           </div>
         </div>
 

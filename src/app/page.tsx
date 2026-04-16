@@ -32,10 +32,10 @@ export default function LandingPage() {
   const saved = selected.reduce((sum, id, i) => sum + (BASE - modPrice(i)), 0)
 
   return (
-    <div style={{ fontFamily: "'Georgia', serif", background: '#f5f2ec', minHeight: '100vh', color: '#0f0f0f' }}>
+    <div style={{ fontFamily: "'Georgia', serif", background: '#f0f0f0', minHeight: '100vh', color: '#0f0f0f' }}>
 
       {/* NAV */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(245,242,236,0.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(15,15,15,0.1)', padding: '0 5vw', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(240,240,240,0.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(15,15,15,0.1)', padding: '0 5vw', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 20, letterSpacing: -0.5 }}>Nex<span style={{ color: '#2d7a57' }}>ERP</span></div>
         <div style={{ display: 'flex', gap: 12 }}>
           <Link href="/login" style={{ padding: '8px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f', fontFamily: 'sans-serif' }}>
@@ -89,9 +89,9 @@ export default function LandingPage() {
             { icon: '⏱', name: 'Aktivite Yönetimi', desc: 'Danışmanlık projelerini ve zaman girişlerini takip edin.', features: ['Proje ve danışman takibi', 'Zaman girişleri ve onay', 'Excel raporlama'], color: '#faeae3' },
             { icon: '📦', name: 'Stok Yönetimi', desc: 'Ürün envanterinizi gerçek zamanlı takip edin.', features: ['Ürün ve kategori yönetimi', 'Giriş / çıkış hareketleri', 'Düşük stok uyarısı'], color: '#e8f0fb' },
           ].map(m => (
-            <div key={m.name} style={{ background: '#f5f2ec', padding: '36px', transition: 'background 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#ede9e0')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#f5f2ec')}>
+            <div key={m.name} style={{ background: '#f0f0f0', padding: '36px', transition: 'background 0.2s' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#e4e4e4')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#f0f0f0')}>
               <div style={{ width: 44, height: 44, borderRadius: 10, background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 20 }}>{m.icon}</div>
               <div style={{ fontSize: 20, letterSpacing: -0.5, marginBottom: 10 }}>{m.name}</div>
               <p style={{ fontSize: 14, color: 'rgba(15,15,15,0.6)', fontFamily: 'sans-serif', marginBottom: 20, lineHeight: 1.6 }}>{m.desc}</p>

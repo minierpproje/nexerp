@@ -226,79 +226,12 @@ style={{ display:'inline-flex', alignItems:'center', gap:6,
 - nexerp: `noreply@orderp.xyz`
 - simpleor: `noreply@simpleor.com` (simpleor.com Resend'de verify edilmeli)
 
-## Bekleyen SQL (Her İki Supabase'de Çalıştırılacak)
+## Supabase SQL Çalıştırma
 
-```sql
--- Şube + teslimat
-CREATE TABLE IF NOT EXISTS dealer_branches (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE,
-  dealer_id uuid REFERENCES dealers(id) ON DELETE CASCADE,
-  name text NOT NULL, address text, contact_person text, phone text
-);
-ALTER TABLE dealer_branches ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS branch_id uuid REFERENCES dealer_branches(id);
-ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_date date;
-ALTER TABLE order_items ADD COLUMN IF NOT EXISTS status text DEFAULT 'PENDING';
+Token'lar `C:\Users\OMER METO\nexerp\.env.local.txt` dosyasında:
+- `SUPABASE_MANAGEMENT_TOKEN_DEV` → vsxymimvlatqnfjaisdy (DEV)
+- `SUPABASE_MANAGEMENT_TOKEN_PROD` → ebqrnoqvkxyzpdrajdeq (PROD)
 
--- Bayi kategorileri
-CREATE TABLE IF NOT EXISTS dealer_categories (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE,
-  name text NOT NULL, rules jsonb DEFAULT '{}',
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE dealer_categories ENABLE ROW LEVEL SECURITY;
-CREATE POLICY owner_access ON dealer_categories FOR ALL
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()))
-  WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()));
-ALTER TABLE dealers ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES dealer_categories(id);
+Management API: `POST https://api.supabase.com/v1/projects/{ref}/database/query`
 
--- Özel fiyatlar
-CREATE TABLE IF NOT EXISTS dealer_product_prices (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE,
-  dealer_id uuid REFERENCES dealers(id) ON DELETE CASCADE,
-  product_id uuid REFERENCES dealer_products(id) ON DELETE CASCADE,
-  price numeric NOT NULL, created_at timestamptz DEFAULT now(),
-  UNIQUE(tenant_id, dealer_id, product_id)
-);
-ALTER TABLE dealer_product_prices ENABLE ROW LEVEL SECURITY;
-CREATE POLICY owner_access ON dealer_product_prices FOR ALL
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()))
-  WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()));
-CREATE POLICY dealer_select ON dealer_product_prices FOR SELECT
-  USING (dealer_id IN (SELECT id FROM dealers WHERE email = auth.email()));
-
--- Ödemeler
-CREATE TABLE IF NOT EXISTS dealer_payments (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE,
-  dealer_id uuid REFERENCES dealers(id) ON DELETE CASCADE,
-  amount numeric NOT NULL, note text,
-  created_at timestamptz DEFAULT now()
-);
-ALTER TABLE dealer_payments ENABLE ROW LEVEL SECURITY;
-CREATE POLICY owner_access ON dealer_payments FOR ALL
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()))
-  WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()));
-
--- Ayarlar
-ALTER TABLE tenants ADD COLUMN IF NOT EXISTS hide_base_price boolean DEFAULT false;
-
--- Ürün kategori hiyerarşisi (RLS güncellemesi)
-DROP POLICY IF EXISTS owner_access ON product_category_levels;
-DROP POLICY IF EXISTS owner_access ON product_category_values;
-CREATE POLICY select_access ON product_category_levels FOR SELECT
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid())
-    OR tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY write_access ON product_category_levels FOR ALL
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()))
-  WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()));
-CREATE POLICY select_access ON product_category_values FOR SELECT
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid())
-    OR tenant_id IN (SELECT tenant_id FROM profiles WHERE id = auth.uid()));
-CREATE POLICY write_access ON product_category_values FOR ALL
-  USING (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()))
-  WITH CHECK (tenant_id IN (SELECT id FROM tenants WHERE owner_id = auth.uid()));
-```
+Yeni SQL gerektiren bir değişiklik yapılınca önce DEV'de çalıştır, doğrula, sonra PROD'a uygula. SQL editöre gerek yok.

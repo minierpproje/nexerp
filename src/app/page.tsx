@@ -8,6 +8,8 @@ const MODULES = [
   { id: 'dealer_orders', name: 'Bayi Sipariş', desc: 'Sipariş & onay akışı', icon: '🏪', bg: '#e8f0ec' },
   { id: 'aktivite', name: 'Aktivite Yönetimi', desc: 'Firma aktiviteleri & raporlar', icon: '📋', bg: '#fef3e2' },
   { id: 'stock', name: 'Stok Yönetimi', desc: 'Envanter & hareketler', icon: '📦', bg: '#e8f0fb' },
+  { id: 'crm', name: 'CRM', desc: 'Müşteri ilişkileri yönetimi', icon: '👥', bg: '#f0e8fb' },
+  { id: 'gider', name: 'Gider Takibi', desc: 'Harcama ve gider yönetimi', icon: '💰', bg: '#e8fbe8' },
 ]
 
 const BASE = 790
@@ -80,6 +82,8 @@ export default function LandingPage() {
             { icon: '🏪', name: 'Bayi Sipariş Yönetimi', desc: 'Bayilerden gelen siparişleri merkezi olarak yönetin.', features: ['Sipariş oluşturma ve takibi', 'Bayi bazlı fiyatlandırma', 'Onay akışı ve bildirimler'], color: '#e8f0ec' },
             { icon: '📋', name: 'Aktivite Yönetimi', desc: 'Saha aktivitelerinizi kaydedin ve raporlayın.', features: ['Aktivite ve saat takibi', 'Firma bazlı rate yönetimi', 'Fatura ve ödeme takibi'], color: '#fef3e2' },
             { icon: '📦', name: 'Stok Yönetimi', desc: 'Ürün envanterinizi gerçek zamanlı takip edin.', features: ['Ürün ve kategori yönetimi', 'Giriş / çıkış hareketleri', 'Düşük stok uyarısı'], color: '#e8f0fb' },
+            { icon: '👥', name: 'CRM', desc: 'Müşteri ilişkilerinizi merkezi olarak yönetin.', features: ['Müşteri kayıt ve takibi', 'Excel import / export', 'Bölge & şehir filtreleri'], color: '#f0e8fb' },
+            { icon: '💰', name: 'Gider Takibi', desc: 'Şirket harcamalarınızı kayıt altına alın.', features: ['Gider kategorileri', 'Harcama girişi ve listesi', 'Dönemsel raporlama'], color: '#e8fbe8' },
           ].map(m => (
             <div key={m.name} style={{ background: '#f0f0f0', padding: '36px', transition: 'background 0.2s' }}
               onMouseEnter={e => (e.currentTarget.style.background = '#e4e4e4')}

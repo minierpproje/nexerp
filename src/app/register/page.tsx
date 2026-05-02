@@ -1,19 +1,37 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import { Suspense } from 'react'
 
-export default function PlatformRegisterPage() {
+const MODULE_NAMES: Record<string, string> = {
+  dealer_orders: 'Bayi Sipariş',
+  aktivite: 'Aktivite Yönetimi',
+  stock: 'Stok Yönetimi',
+  crm: 'CRM',
+  gider: 'Gider Takibi',
+}
+
+function RegisterForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [modules, setModules] = useState<string[]>([])
+
+  useEffect(() => {
+    const m = searchParams.get('modules')
+    if (m) setModules(m.split(',').filter(Boolean))
+    else setModules(['dealer_orders'])
+  }, [searchParams])
 
   async function handleRegister(e: React.FormEvent) {
     e.preventDefault()
@@ -39,22 +57,20 @@ export default function PlatformRegisterPage() {
       return
     }
 
-    const { error: tenantError } = await supabase.from('tenants').insert({
-      slug: cleanSlug,
-      name,
-      owner_id: data.user.id,
-      module: 'dealer_orders',
-      status: 'trial',
+    const res = await fetch('/api/register-tenant', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: data.user.id, slug: cleanSlug, name, email, modules }),
     })
+    const json = await res.json()
 
-    if (tenantError) {
-      setError('Bu URL adı zaten alınmış, başka bir tane deneyin.')
+    if (!json.ok) {
+      setError(json.error || 'Tenant oluşturulamadı.')
       setLoading(false)
       return
     }
 
-    router.push('/dashboard')
-    router.refresh()
+    router.push('/login')
   }
 
   const inputStyle = {
@@ -69,10 +85,17 @@ export default function PlatformRegisterPage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f2ec' }}>
-      <div style={{ width: 400, background: 'white', borderRadius: 14, padding: 32, border: '1px solid rgba(15,15,15,0.1)' }}>
+      <div style={{ width: 420, background: 'white', borderRadius: 14, padding: 32, border: '1px solid rgba(15,15,15,0.1)' }}>
         <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: '#2d7a57', marginBottom: 8 }}>SimpleORder</div>
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 26, marginBottom: 6 }}>Hesap Oluştur</h1>
-        <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>14 gün ücretsiz dene.</p>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 16 }}>14 gün ücretsiz dene.</p>
+
+        {modules.length > 0 && (
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: 13 }}>
+            <span style={{ color: '#166534', fontWeight: 500 }}>Seçili modüller: </span>
+            <span style={{ color: '#166534' }}>{modules.map(m => MODULE_NAMES[m] || m).join(', ')}</span>
+          </div>
+        )}
 
         {error && (
           <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
@@ -89,7 +112,7 @@ export default function PlatformRegisterPage() {
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>URL Adı</label>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, overflow: 'hidden' }}>
-              <span style={{ padding: '10px 12px', background: '#f5f2ec', fontSize: 13, color: '#888', whiteSpace: 'nowrap' }}>nexerp.com/</span>
+              <span style={{ padding: '10px 12px', background: '#f5f2ec', fontSize: 13, color: '#888', whiteSpace: 'nowrap' }}>simpleor.com/</span>
               <input type="text" value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 required placeholder="firmam" style={{ ...inputStyle, border: 'none', borderRadius: 0 }} />
             </div>
@@ -116,5 +139,13 @@ export default function PlatformRegisterPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense>
+      <RegisterForm />
+    </Suspense>
   )
 }

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
+const SUPER_ADMIN_EMAIL = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || ''
+
 export default function PlatformLoginPage() {
   const router = useRouter()
   const supabase = createClient()
@@ -28,7 +30,12 @@ export default function PlatformLoginPage() {
 
     const user = data.user
 
-    // Super admin kontrolü
+    // Super admin: env'deki email veya is_super_admin flag
+    if (SUPER_ADMIN_EMAIL && user.email === SUPER_ADMIN_EMAIL) {
+      router.push('/dashboard')
+      return
+    }
+
     const { data: profile } = await supabase
       .from('profiles')
       .select('is_super_admin, role, tenant_id')
@@ -40,7 +47,7 @@ export default function PlatformLoginPage() {
       return
     }
 
-    // Tenant sahibi kontrolü
+    // Tenant sahibi
     const { data: ownedTenant } = await supabase
       .from('tenants')
       .select('slug')
@@ -52,7 +59,7 @@ export default function PlatformLoginPage() {
       return
     }
 
-    // Bayi kontrolü
+    // Bayi: profile.tenant_id üzerinden
     if (profile?.tenant_id) {
       const { data: tenant } = await supabase
         .from('tenants')
@@ -66,12 +73,12 @@ export default function PlatformLoginPage() {
       }
     }
 
-    // Fallback: email ile dealer tablosunda ara
+    // Bayi: dealers tablosunda email eşleşmesi (fallback)
     const { data: dealer } = await supabase
       .from('dealers')
       .select('tenant_id')
       .eq('email', user.email)
-      .single()
+      .maybeSingle()
 
     if (dealer?.tenant_id) {
       const { data: tenant } = await supabase
@@ -86,7 +93,10 @@ export default function PlatformLoginPage() {
       }
     }
 
-    router.push('/dashboard')
+    // Hesap var ama hiçbir yere bağlı değil
+    await supabase.auth.signOut()
+    setError('Bu hesap herhangi bir sisteme bağlı değil. Lütfen yöneticinizle iletişime geçin.')
+    setLoading(false)
   }
 
   return (

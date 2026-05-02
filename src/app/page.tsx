@@ -5,23 +5,60 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 const MODULES = [
-  { id: 'dealer_orders', name: 'Bayi Sipariş', desc: 'Sipariş & onay akışı', icon: '🏪', bg: '#e8f0ec' },
-  { id: 'aktivite', name: 'Aktivite Yönetimi', desc: 'Firma aktiviteleri & raporlar', icon: '📋', bg: '#fef3e2' },
-  { id: 'stock', name: 'Stok Yönetimi', desc: 'Envanter & hareketler', icon: '📦', bg: '#e8f0fb' },
-  { id: 'crm', name: 'CRM', desc: 'Müşteri ilişkileri yönetimi', icon: '👥', bg: '#f0e8fb' },
-  { id: 'gider', name: 'Gider Takibi', desc: 'Harcama ve gider yönetimi', icon: '💰', bg: '#e8fbe8' },
+  {
+    id: 'dealer_orders',
+    name: 'Bayi Sipariş Yönetimi',
+    short: 'Sipariş & onay akışı',
+    icon: '🏪',
+    desc: 'Bayilerinizden gelen siparişleri merkezi olarak yönetin. Bayi bazlı özel fiyatlandırma, kota yönetimi, şube teslimatı ve onay akışıyla tüm süreci tek ekrandan takip edin.',
+    features: ['Bayi bazlı özel fiyat ve kota', 'Şube & randevulu teslimat', 'Sipariş onay akışı', 'Kalem bazlı durum takibi'],
+    videoUrl: '',
+  },
+  {
+    id: 'aktivite',
+    name: 'Aktivite Yönetimi',
+    short: 'Firma aktiviteleri & raporlar',
+    icon: '📋',
+    desc: 'Saha ekibinizin firma ziyaretlerini, aktivitelerini ve saat girişlerini kayıt altına alın. Firma bazlı rate yönetimi ve fatura takibiyle operasyonel maliyetlerinizi kontrol edin.',
+    features: ['Aktivite ve saat girişi', 'Firma bazlı rate yönetimi', 'Fatura ve ödeme takibi', 'Rate özeti raporları'],
+    videoUrl: '',
+  },
+  {
+    id: 'stock',
+    name: 'Stok Yönetimi',
+    short: 'Envanter & hareketler',
+    icon: '📦',
+    desc: 'Ürün envanterinizi gerçek zamanlı takip edin. Sipariş onaylandığında otomatik stok düşme, düşük stok uyarıları ve kategori bazlı ürün yönetimiyle envanter kontrolünü kaybetmeyin.',
+    features: ['Gerçek zamanlı stok takibi', 'Otomatik stok düşme (sipariş onayı)', 'Düşük stok uyarısı', 'Ürün kategori yönetimi'],
+    videoUrl: '',
+  },
+  {
+    id: 'crm',
+    name: 'CRM',
+    short: 'Müşteri ilişkileri yönetimi',
+    icon: '👥',
+    desc: 'Müşteri portföyünüzü merkezi bir veritabanında tutun. Excel ile toplu import/export, bölge & şehir bazlı filtreleme ve müşteri notlarıyla ilişkilerinizi güçlendirin.',
+    features: ['Müşteri kayıt ve takibi', 'Excel import / export', 'Bölge & şehir filtreleri', 'Notlar ve adres yönetimi'],
+    videoUrl: '',
+  },
+  {
+    id: 'gider',
+    name: 'Gider Takibi',
+    short: 'Harcama ve gider yönetimi',
+    icon: '💰',
+    desc: 'Şirket harcamalarınızı kategori bazlı kayıt altına alın. Dönemsel raporlarla gider trendlerinizi analiz edin ve bütçe kontrolünü elinizde tutun.',
+    features: ['Gider kategorileri', 'Harcama girişi ve listesi', 'Dönemsel raporlama', 'Bütçe takibi'],
+    videoUrl: '',
+  },
 ]
 
 const BASE = 790
+const EXTRA = 100
 
 export default function LandingPage() {
   const router = useRouter()
   const [selected, setSelected] = useState<string[]>([])
-
-  function modPrice(idx: number) {
-    if (idx === 0) return BASE
-    return Math.round(BASE * 0.70)
-  }
+  const [expanded, setExpanded] = useState<string | null>(null)
 
   function toggleModule(id: string) {
     setSelected(prev =>
@@ -29,9 +66,11 @@ export default function LandingPage() {
     )
   }
 
-  const total = selected.reduce((sum, _, i) => sum + modPrice(i), 0)
-  const yearlyTotal = Math.round(total * 12 * 0.80)
-  const saved = selected.length > 1 ? selected.reduce((sum, _, i) => sum + (BASE - modPrice(i)), 0) : 0
+  function toggleExpand(id: string) {
+    setExpanded(prev => prev === id ? null : id)
+  }
+
+  const total = selected.length === 0 ? 0 : BASE + (selected.length - 1) * EXTRA
 
   function handleStart() {
     const params = selected.length > 0 ? `?modules=${selected.join(',')}` : ''
@@ -41,14 +80,16 @@ export default function LandingPage() {
   return (
     <div style={{ fontFamily: "'Georgia', serif", background: '#f0f0f0', minHeight: '100vh', color: '#0f0f0f' }}>
 
+      {/* NAV */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(240,240,240,0.92)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(15,15,15,0.1)', padding: '0 5vw', height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ fontSize: 20, letterSpacing: -0.5 }}>Simple<span style={{ color: '#2d7a57' }}>OR</span>der</div>
         <div style={{ display: 'flex', gap: 12 }}>
           <Link href="/login" style={{ padding: '8px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f', fontFamily: 'sans-serif' }}>Giriş Yap</Link>
-          <a href="#pricing" style={{ padding: "8px 18px", background: "#0f0f0f", color: "#f5f2ec", borderRadius: 8, fontSize: 13, border: "none", cursor: "pointer", fontFamily: "sans-serif", textDecoration: "none" }}>Ücretsiz Dene</a>
+          <a href="#pricing" style={{ padding: '8px 18px', background: '#0f0f0f', color: '#f5f2ec', borderRadius: 8, fontSize: 13, border: 'none', cursor: 'pointer', fontFamily: 'sans-serif', textDecoration: 'none' }}>Ücretsiz Dene</a>
         </div>
       </nav>
 
+      {/* HERO */}
       <section style={{ padding: '100px 5vw 80px', maxWidth: 900, margin: '0 auto' }}>
         <div style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#2d7a57', marginBottom: 24, fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ display: 'inline-block', width: 24, height: 1, background: '#2d7a57' }}></span>
@@ -65,7 +106,7 @@ export default function LandingPage() {
           <a href="#modules" style={{ padding: '14px 32px', background: 'transparent', border: '1px solid rgba(15,15,15,0.2)', borderRadius: 8, fontSize: 15, textDecoration: 'none', color: '#0f0f0f', fontFamily: 'sans-serif' }}>Özellikleri Gör</a>
         </div>
         <div style={{ display: 'flex', gap: 48, marginTop: 80, paddingTop: 40, borderTop: '1px solid rgba(15,15,15,0.1)', flexWrap: 'wrap' }}>
-          {[{ num: '2+', label: 'Aktif modül' }, { num: '∞', label: 'Ölçeklenebilir' }, { num: '14', label: 'Gün ücretsiz' }].map(s => (
+          {[{ num: '5', label: 'Modül' }, { num: '∞', label: 'Ölçeklenebilir' }, { num: '14', label: 'Gün ücretsiz' }].map(s => (
             <div key={s.label}>
               <div style={{ fontSize: 36, letterSpacing: -1 }}>{s.num}</div>
               <div style={{ fontSize: 13, color: 'rgba(15,15,15,0.6)', fontFamily: 'sans-serif', marginTop: 2 }}>{s.label}</div>
@@ -74,59 +115,81 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* MODÜLLER — akordeon */}
       <section id="modules" style={{ padding: '80px 5vw', maxWidth: 900, margin: '0 auto' }}>
         <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(15,15,15,0.6)', marginBottom: 16, fontFamily: 'sans-serif' }}>Modüller</div>
         <h2 style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: -1.5, marginBottom: 48 }}>Her modül kendi dünyası,<br />tek platform.</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 2, background: 'rgba(15,15,15,0.1)', borderRadius: 14, overflow: 'hidden' }}>
-          {[
-            { icon: '🏪', name: 'Bayi Sipariş Yönetimi', desc: 'Bayilerden gelen siparişleri merkezi olarak yönetin.', features: ['Sipariş oluşturma ve takibi', 'Bayi bazlı fiyatlandırma', 'Onay akışı ve bildirimler'], color: '#e8f0ec' },
-            { icon: '📋', name: 'Aktivite Yönetimi', desc: 'Saha aktivitelerinizi kaydedin ve raporlayın.', features: ['Aktivite ve saat takibi', 'Firma bazlı rate yönetimi', 'Fatura ve ödeme takibi'], color: '#fef3e2' },
-            { icon: '📦', name: 'Stok Yönetimi', desc: 'Ürün envanterinizi gerçek zamanlı takip edin.', features: ['Ürün ve kategori yönetimi', 'Giriş / çıkış hareketleri', 'Düşük stok uyarısı'], color: '#e8f0fb' },
-            { icon: '👥', name: 'CRM', desc: 'Müşteri ilişkilerinizi merkezi olarak yönetin.', features: ['Müşteri kayıt ve takibi', 'Excel import / export', 'Bölge & şehir filtreleri'], color: '#f0e8fb' },
-            { icon: '💰', name: 'Gider Takibi', desc: 'Şirket harcamalarınızı kayıt altına alın.', features: ['Gider kategorileri', 'Harcama girişi ve listesi', 'Dönemsel raporlama'], color: '#e8fbe8' },
-          ].map(m => (
-            <div key={m.name} style={{ background: '#f0f0f0', padding: '36px', transition: 'background 0.2s' }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#e4e4e4')}
-              onMouseLeave={e => (e.currentTarget.style.background = '#f0f0f0')}>
-              <div style={{ width: 44, height: 44, borderRadius: 10, background: m.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 20 }}>{m.icon}</div>
-              <div style={{ fontSize: 20, letterSpacing: -0.5, marginBottom: 10 }}>{m.name}</div>
-              <p style={{ fontSize: 14, color: 'rgba(15,15,15,0.6)', fontFamily: 'sans-serif', marginBottom: 20, lineHeight: 1.6 }}>{m.desc}</p>
-              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {m.features.map(f => (
-                  <li key={f} style={{ fontSize: 13, color: 'rgba(15,15,15,0.6)', fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'rgba(15,15,15,0.3)', flexShrink: 0 }}></span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {MODULES.map((m) => {
+            const isExp = expanded === m.id
+            return (
+              <div key={m.id} style={{ background: isExp ? '#e8ede9' : '#f0f0f0', borderRadius: 4, overflow: 'hidden', transition: 'background 0.2s' }}>
+                {/* Başlık satırı */}
+                <button onClick={() => toggleExpand(m.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '24px 28px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+                  <span style={{ fontSize: 24, flexShrink: 0 }}>{m.icon}</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 18, letterSpacing: -0.3 }}>{m.name}</span>
+                    <span style={{ display: 'block', fontSize: 13, color: 'rgba(15,15,15,0.55)', fontFamily: 'sans-serif', marginTop: 2 }}>{m.short}</span>
+                  </span>
+                  <span style={{ fontSize: 20, color: '#2d7a57', flexShrink: 0, transform: isExp ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s' }}>+</span>
+                </button>
+
+                {/* Açılan içerik */}
+                {isExp && (
+                  <div style={{ padding: '0 28px 28px 68px', display: 'grid', gridTemplateColumns: m.videoUrl ? '1fr 1fr' : '1fr', gap: 32 }}>
+                    <div>
+                      <p style={{ fontSize: 15, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.7)', lineHeight: 1.7, marginBottom: 20 }}>{m.desc}</p>
+                      <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {m.features.map(f => (
+                          <li key={f} style={{ fontSize: 14, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.7)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#2d7a57', color: 'white', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✓</span>
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {m.videoUrl && (
+                      <div style={{ borderRadius: 10, overflow: 'hidden', background: '#000', aspectRatio: '16/9' }}>
+                        <iframe src={m.videoUrl} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen />
+                      </div>
+                    )}
+                    {!m.videoUrl && (
+                      <div style={{ borderRadius: 10, background: 'rgba(15,15,15,0.06)', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.3)' }}>Demo videosu yakında</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </section>
 
+      {/* FİYATLANDIRMA */}
       <section id="pricing" style={{ padding: '80px 5vw', background: '#ede9e0' }}>
         <div style={{ maxWidth: 700, margin: '0 auto' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(15,15,15,0.6)', marginBottom: 16, fontFamily: 'sans-serif' }}>Fiyatlandırma</div>
           <h2 style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: -1.5, marginBottom: 12 }}>İstediğin modülü seç,<br />sepete <em style={{ color: '#2d7a57' }}>ekle</em>.</h2>
           <p style={{ fontSize: 14, color: 'rgba(15,15,15,0.6)', fontFamily: 'sans-serif', marginBottom: 36 }}>
-            Her modül ₺790/ay başlangıç. 2. modülde %30 indirim.
+            İlk modül ₺{BASE.toLocaleString('tr-TR')}/ay · Her ek modül +₺{EXTRA}/ay
           </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, marginBottom: 24 }}>
-            {MODULES.map((m, i) => {
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+            {MODULES.map((m) => {
               const isSel = selected.includes(m.id)
-              const selIdx = selected.indexOf(m.id)
-              const price = isSel ? modPrice(selIdx) : BASE
               return (
                 <div key={m.id} onClick={() => toggleModule(m.id)}
-                  style={{ background: isSel ? m.bg : 'white', border: isSel ? '2px solid #2d7a57' : '1px solid rgba(15,15,15,0.1)', borderRadius: 12, padding: 18, cursor: 'pointer', transition: 'all 0.15s', userSelect: 'none', position: 'relative' }}>
-                  {isSel && <div style={{ position: 'absolute', top: -7, right: -7, width: 20, height: 20, borderRadius: '50%', background: '#2d7a57', color: 'white', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontFamily: 'sans-serif' }}>✓</div>}
-                  <div style={{ fontSize: 20, marginBottom: 10 }}>{m.icon}</div>
-                  <div style={{ fontSize: 13, fontFamily: 'sans-serif', fontWeight: 500, marginBottom: 3 }}>{m.name}</div>
-                  <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)', marginBottom: 10 }}>₺{price.toLocaleString('tr-TR')}/ay</div>
-                  <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: isSel ? '#2d7a57' : '#888', fontWeight: isSel ? 600 : 400 }}>
-                    {isSel ? '✓ Sepette' : '+ Sepete Ekle'}
-                  </div>
+                  style={{ display: 'flex', alignItems: 'center', gap: 16, background: isSel ? 'white' : 'rgba(255,255,255,0.5)', border: isSel ? '2px solid #2d7a57' : '1px solid rgba(15,15,15,0.1)', borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'all 0.15s', userSelect: 'none' }}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
+                  <span style={{ flex: 1 }}>
+                    <span style={{ display: 'block', fontSize: 15, fontFamily: 'sans-serif', fontWeight: 500 }}>{m.name}</span>
+                    <span style={{ display: 'block', fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)', marginTop: 2 }}>{m.short}</span>
+                  </span>
+                  <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: isSel ? '#2d7a57' : '#888', fontWeight: isSel ? 600 : 400, flexShrink: 0 }}>
+                    {isSel ? '✓ Seçildi' : '+ Ekle'}
+                  </span>
                 </div>
               )
             })}
@@ -142,22 +205,13 @@ export default function LandingPage() {
                     <span style={{ fontSize: 40, letterSpacing: -2 }}>{total.toLocaleString('tr-TR')}</span>
                     <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)' }}>/ay</span>
                   </div>
-                  <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)', marginTop: 4 }}>
-                    Yıllık: ₺{yearlyTotal.toLocaleString('tr-TR')}/yıl (%20 ek indirim)
-                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  {saved > 0 && (
-                    <div style={{ fontSize: 12, fontFamily: 'sans-serif', padding: '3px 10px', borderRadius: 20, background: '#e8f0ec', color: '#2d7a57', fontWeight: 500, marginBottom: 8 }}>
-                      ₺{saved.toLocaleString('tr-TR')} tasarruf
-                    </div>
-                  )}
-                  <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)', lineHeight: 1.8 }}>
-                    {selected.map((id, i) => {
-                      const m = MODULES.find(x => x.id === id)!
-                      return <div key={id}>{m.name}: ₺{modPrice(i).toLocaleString('tr-TR')}{i > 0 ? ' (-%30)' : ''}</div>
-                    })}
-                  </div>
+                <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)', lineHeight: 1.9 }}>
+                  {selected.map((id, i) => {
+                    const mod = MODULES.find(x => x.id === id)!
+                    const price = i === 0 ? BASE : EXTRA
+                    return <div key={id}>{mod.name}: ₺{price.toLocaleString('tr-TR')}{i > 0 ? '/ay ek' : '/ay'}</div>
+                  })}
                 </div>
               </div>
             </div>
@@ -173,11 +227,12 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* FOOTER */}
       <footer style={{ borderTop: '1px solid rgba(15,15,15,0.1)', padding: '32px 5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ fontSize: 16 }}>Simple<span style={{ color: '#2d7a57' }}>OR</span>der</div>
         <p style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)' }}>© 2026 SimpleORder</p>
         <div style={{ display: 'flex', gap: 20 }}>
-          {[{label:'Gizlilik',href:'/gizlilik'},{label:'Kullanım Koşulları',href:'/kullanim-kosullari'},{label:'İletişim',href:'mailto:info@simpleor.com'}].map(l => (
+          {[{ label: 'Gizlilik', href: '/gizlilik' }, { label: 'Kullanım Koşulları', href: '/kullanim-kosullari' }, { label: 'İletişim', href: 'mailto:info@simpleor.com' }].map(l => (
             <a key={l.label} href={l.href} style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)', textDecoration: 'none' }}>{l.label}</a>
           ))}
         </div>

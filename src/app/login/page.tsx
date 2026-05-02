@@ -18,24 +18,83 @@ export default function PlatformLoginPage() {
     setError('')
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
 
-    if (error) {
+    if (signInError || !data.user) {
       setError('E-posta veya şifre hatalı.')
       setLoading(false)
       return
     }
 
+    const user = data.user
+
+    // Super admin kontrolü
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_super_admin, role, tenant_id')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.is_super_admin) {
+      router.push('/dashboard')
+      return
+    }
+
+    // Tenant sahibi kontrolü
+    const { data: ownedTenant } = await supabase
+      .from('tenants')
+      .select('slug')
+      .eq('owner_id', user.id)
+      .single()
+
+    if (ownedTenant?.slug) {
+      router.push(`/${ownedTenant.slug}`)
+      return
+    }
+
+    // Bayi kontrolü
+    if (profile?.tenant_id) {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('slug')
+        .eq('id', profile.tenant_id)
+        .single()
+
+      if (tenant?.slug) {
+        router.push(`/${tenant.slug}/orders`)
+        return
+      }
+    }
+
+    // Fallback: email ile dealer tablosunda ara
+    const { data: dealer } = await supabase
+      .from('dealers')
+      .select('tenant_id')
+      .eq('email', user.email)
+      .single()
+
+    if (dealer?.tenant_id) {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('slug')
+        .eq('id', dealer.tenant_id)
+        .single()
+
+      if (tenant?.slug) {
+        router.push(`/${tenant.slug}/orders`)
+        return
+      }
+    }
+
     router.push('/dashboard')
-    router.refresh()
   }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f2ec' }}>
       <div style={{ width: 360, background: 'white', borderRadius: 14, padding: 32, border: '1px solid rgba(15,15,15,0.1)' }}>
         <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: '#2d7a57', marginBottom: 8 }}>SimpleORder</div>
-        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 26, marginBottom: 6 }}>Platform Girişi</h1>
-        <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Platform yönetici hesabı.</p>
+        <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 26, marginBottom: 6 }}>Giriş Yap</h1>
+        <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Hesabınıza giriş yapın.</p>
 
         {error && (
           <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>

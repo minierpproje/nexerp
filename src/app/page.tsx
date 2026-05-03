@@ -415,6 +415,33 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ÖZEL KURULUM */}
+      <section style={{ padding: '0 5vw 80px' }}>
+        <div style={{ maxWidth: 680, margin: '0 auto' }}>
+          <div style={{
+            background: '#0f0f0f', borderRadius: 18, padding: '48px 48px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 32, flexWrap: 'wrap',
+          }}>
+            <div style={{ flex: 1, minWidth: 220 }}>
+              <p style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', fontFamily: 'sans-serif', marginBottom: 14 }}>Kurumsal / Özel Kurulum</p>
+              <h3 style={{ fontSize: 'clamp(22px, 3vw, 30px)', letterSpacing: -0.8, color: 'white', marginBottom: 12, lineHeight: 1.2 }}>
+                Kendi alan adında<br />çalıştırmak ister misin?
+              </h3>
+              <p style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(255,255,255,0.5)', lineHeight: 1.75, margin: 0 }}>
+                Sistemi kendi markan ve alan adın altında, özel yapılandırmayla kullanmak istiyorsan bizimle iletişime geç.
+              </p>
+            </div>
+            <a href="mailto:info@simpleor.com?subject=Özel Kurulum Talebi" style={{
+              padding: '13px 28px', background: '#2d7a57', color: 'white',
+              borderRadius: 9, fontSize: 14, textDecoration: 'none', fontFamily: 'sans-serif', fontWeight: 600,
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              İletişime Geç →
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* FOOTER */}
       <footer style={{ borderTop: '1px solid rgba(15,15,15,0.1)', padding: '32px 5vw', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div style={{ fontSize: 16 }}>Simple<span style={{ color: '#2d7a57' }}>OR</span>der</div>

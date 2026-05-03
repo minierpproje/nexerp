@@ -115,50 +115,68 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MODÜLLER — akordeon */}
+      {/* MODÜLLER — çerçeveli akordeon kartlar */}
       <section id="modules" style={{ padding: '80px 5vw', maxWidth: 900, margin: '0 auto' }}>
         <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(15,15,15,0.6)', marginBottom: 16, fontFamily: 'sans-serif' }}>Modüller</div>
         <h2 style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: -1.5, marginBottom: 48 }}>Her modül kendi dünyası,<br />tek platform.</h2>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {MODULES.map((m) => {
             const isExp = expanded === m.id
             return (
-              <div key={m.id} style={{ background: isExp ? '#e8ede9' : '#f0f0f0', borderRadius: 4, overflow: 'hidden', transition: 'background 0.2s' }}>
-                {/* Başlık satırı */}
-                <button onClick={() => toggleExpand(m.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 16, padding: '24px 28px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
-                  <span style={{ fontSize: 24, flexShrink: 0 }}>{m.icon}</span>
+              <div key={m.id} style={{
+                background: isExp ? 'white' : 'white',
+                border: isExp ? '2px solid #2d7a57' : '1px solid rgba(15,15,15,0.12)',
+                borderRadius: 14,
+                overflow: 'hidden',
+                transition: 'border-color 0.2s',
+                boxShadow: isExp ? '0 4px 20px rgba(45,122,87,0.08)' : '0 1px 4px rgba(0,0,0,0.04)',
+              }}>
+                {/* Başlık */}
+                <button onClick={() => toggleExpand(m.id)} style={{
+                  width: '100%', display: 'flex', alignItems: 'center', gap: 16,
+                  padding: '20px 24px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left',
+                }}>
+                  <span style={{
+                    width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+                    background: isExp ? '#e8f0ec' : '#f5f5f5',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+                    transition: 'background 0.2s',
+                  }}>{m.icon}</span>
                   <span style={{ flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: 18, letterSpacing: -0.3 }}>{m.name}</span>
-                    <span style={{ display: 'block', fontSize: 13, color: 'rgba(15,15,15,0.55)', fontFamily: 'sans-serif', marginTop: 2 }}>{m.short}</span>
+                    <span style={{ display: 'block', fontSize: 17, letterSpacing: -0.3, fontWeight: isExp ? 600 : 400 }}>{m.name}</span>
+                    <span style={{ display: 'block', fontSize: 13, color: 'rgba(15,15,15,0.5)', fontFamily: 'sans-serif', marginTop: 2 }}>{m.short}</span>
                   </span>
-                  <span style={{ fontSize: 20, color: '#2d7a57', flexShrink: 0, transform: isExp ? 'rotate(45deg)' : 'none', transition: 'transform 0.2s' }}>+</span>
+                  <span style={{
+                    width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                    border: '1.5px solid', borderColor: isExp ? '#2d7a57' : 'rgba(15,15,15,0.2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 16, color: isExp ? '#2d7a57' : 'rgba(15,15,15,0.4)',
+                    transform: isExp ? 'rotate(45deg)' : 'none',
+                    transition: 'all 0.2s',
+                  }}>+</span>
                 </button>
 
                 {/* Açılan içerik */}
                 {isExp && (
-                  <div style={{ padding: '0 28px 28px 68px', display: 'grid', gridTemplateColumns: m.videoUrl ? '1fr 1fr' : '1fr', gap: 32 }}>
+                  <div style={{ padding: '4px 24px 28px 84px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
                     <div>
-                      <p style={{ fontSize: 15, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.7)', lineHeight: 1.7, marginBottom: 20 }}>{m.desc}</p>
+                      <p style={{ fontSize: 14, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.65)', lineHeight: 1.75, marginBottom: 20 }}>{m.desc}</p>
                       <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {m.features.map(f => (
-                          <li key={f} style={{ fontSize: 14, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.7)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <li key={f} style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.7)', display: 'flex', alignItems: 'center', gap: 10 }}>
                             <span style={{ width: 18, height: 18, borderRadius: '50%', background: '#2d7a57', color: 'white', fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✓</span>
                             {f}
                           </li>
                         ))}
                       </ul>
                     </div>
-                    {m.videoUrl && (
-                      <div style={{ borderRadius: 10, overflow: 'hidden', background: '#000', aspectRatio: '16/9' }}>
-                        <iframe src={m.videoUrl} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen />
-                      </div>
-                    )}
-                    {!m.videoUrl && (
-                      <div style={{ borderRadius: 10, background: 'rgba(15,15,15,0.06)', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.3)' }}>Demo videosu yakında</span>
-                      </div>
-                    )}
+                    <div style={{ borderRadius: 10, overflow: 'hidden', background: '#f5f5f5', aspectRatio: '16/9', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {m.videoUrl
+                        ? <iframe src={m.videoUrl} style={{ width: '100%', height: '100%', border: 'none' }} allowFullScreen />
+                        : <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.3)' }}>Demo videosu yakında</span>
+                      }
+                    </div>
                   </div>
                 )}
               </div>
@@ -167,52 +185,68 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FİYATLANDIRMA */}
+      {/* FİYATLANDIRMA — yuvarlak seçici */}
       <section id="pricing" style={{ padding: '80px 5vw', background: '#ede9e0' }}>
-        <div style={{ maxWidth: 700, margin: '0 auto' }}>
+        <div style={{ maxWidth: 620, margin: '0 auto' }}>
           <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(15,15,15,0.6)', marginBottom: 16, fontFamily: 'sans-serif' }}>Fiyatlandırma</div>
           <h2 style={{ fontSize: 'clamp(32px, 4vw, 52px)', letterSpacing: -1.5, marginBottom: 12 }}>İstediğin modülü seç,<br />sepete <em style={{ color: '#2d7a57' }}>ekle</em>.</h2>
           <p style={{ fontSize: 14, color: 'rgba(15,15,15,0.6)', fontFamily: 'sans-serif', marginBottom: 36 }}>
             İlk modül ₺{BASE.toLocaleString('tr-TR')}/ay · Her ek modül +₺{EXTRA}/ay
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 28 }}>
             {MODULES.map((m) => {
               const isSel = selected.includes(m.id)
+              const selIdx = selected.indexOf(m.id)
+              const price = selIdx === 0 ? BASE : EXTRA
               return (
                 <div key={m.id} onClick={() => toggleModule(m.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 16, background: isSel ? 'white' : 'rgba(255,255,255,0.5)', border: isSel ? '2px solid #2d7a57' : '1px solid rgba(15,15,15,0.1)', borderRadius: 12, padding: '16px 20px', cursor: 'pointer', transition: 'all 0.15s', userSelect: 'none' }}>
-                  <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 4px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid rgba(15,15,15,0.07)' }}>
+                  {/* Yuvarlak seçici */}
+                  <span style={{
+                    width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
+                    border: isSel ? 'none' : '2px solid rgba(15,15,15,0.2)',
+                    background: isSel ? '#2d7a57' : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    transition: 'all 0.15s',
+                  }}>
+                    {isSel && <span style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>✓</span>}
+                  </span>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{m.icon}</span>
                   <span style={{ flex: 1 }}>
-                    <span style={{ display: 'block', fontSize: 15, fontFamily: 'sans-serif', fontWeight: 500 }}>{m.name}</span>
-                    <span style={{ display: 'block', fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)', marginTop: 2 }}>{m.short}</span>
+                    <span style={{ fontSize: 15, fontFamily: 'sans-serif', fontWeight: isSel ? 600 : 400, color: isSel ? '#0f0f0f' : 'rgba(15,15,15,0.75)' }}>{m.name}</span>
+                    <span style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.45)', marginLeft: 8 }}>{m.short}</span>
                   </span>
-                  <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: isSel ? '#2d7a57' : '#888', fontWeight: isSel ? 600 : 400, flexShrink: 0 }}>
-                    {isSel ? '✓ Seçildi' : '+ Ekle'}
-                  </span>
+                  {isSel && (
+                    <span style={{ fontSize: 14, fontFamily: 'sans-serif', fontWeight: 600, color: '#2d7a57', flexShrink: 0 }}>
+                      ₺{price.toLocaleString('tr-TR')}/ay{selIdx > 0 ? ' ek' : ''}
+                    </span>
+                  )}
+                  {!isSel && (
+                    <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.3)', flexShrink: 0 }}>
+                      +{selIdx === -1 && selected.length === 0 ? `₺${BASE.toLocaleString('tr-TR')}` : `₺${EXTRA}`}
+                    </span>
+                  )}
                 </div>
               )
             })}
           </div>
 
           {selected.length > 0 && (
-            <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.1)', borderRadius: 12, padding: '20px 24px', marginBottom: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)', marginBottom: 4 }}>Aylık toplam</div>
-                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                    <span style={{ fontSize: 16, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)' }}>₺</span>
-                    <span style={{ fontSize: 40, letterSpacing: -2 }}>{total.toLocaleString('tr-TR')}</span>
-                    <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)' }}>/ay</span>
-                  </div>
+            <div style={{ background: 'white', borderRadius: 12, padding: '16px 20px', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)', marginBottom: 2 }}>Aylık toplam</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+                  <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)' }}>₺</span>
+                  <span style={{ fontSize: 36, letterSpacing: -1.5 }}>{total.toLocaleString('tr-TR')}</span>
+                  <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)' }}>/ay</span>
                 </div>
-                <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.6)', lineHeight: 1.9 }}>
-                  {selected.map((id, i) => {
-                    const mod = MODULES.find(x => x.id === id)!
-                    const price = i === 0 ? BASE : EXTRA
-                    return <div key={id}>{mod.name}: ₺{price.toLocaleString('tr-TR')}{i > 0 ? '/ay ek' : '/ay'}</div>
-                  })}
-                </div>
+              </div>
+              <div style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)', textAlign: 'right', lineHeight: 1.9 }}>
+                {selected.map((id, i) => {
+                  const mod = MODULES.find(x => x.id === id)!
+                  return <div key={id}>{mod.name}: ₺{(i === 0 ? BASE : EXTRA).toLocaleString('tr-TR')}{i > 0 ? ' ek' : ''}</div>
+                })}
               </div>
             </div>
           )}
@@ -221,7 +255,7 @@ export default function LandingPage() {
             style={{ display: 'block', width: '100%', textAlign: 'center', padding: 14, background: selected.length > 0 ? '#2d7a57' : '#0f0f0f', color: '#f5f2ec', borderRadius: 9, fontSize: 14, border: 'none', cursor: 'pointer', fontFamily: 'sans-serif', fontWeight: 500, transition: 'background 0.15s' }}>
             {selected.length === 0 ? '14 Gün Ücretsiz Dene →' : `${selected.length} modül ile 14 gün ücretsiz dene →`}
           </button>
-          <p style={{ textAlign: 'center', fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.5)', marginTop: 10 }}>
+          <p style={{ textAlign: 'center', fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.4)', marginTop: 10 }}>
             14 gün ücretsiz · Kredi kartı gerekmez · İstediğin zaman iptal
           </p>
         </div>

@@ -49,7 +49,7 @@ export default function TenantDealersPage() {
   const [savingCat, setSavingCat] = useState(false)
   const [priceForm, setPriceForm] = useState<Record<string, { product_id: string; price: string }>>({})
   const [savingPrice, setSavingPrice] = useState<string | null>(null)
-  const [paymentForm, setPaymentForm] = useState<Record<string, { amount: string; note: string }>>({})
+  const [paymentForm, setPaymentForm] = useState<Record<string, { amount: string; note: string; order_id: string }>>({})
   const [savingPayment, setSavingPayment] = useState<string | null>(null)
   const [dealerOrders, setDealerOrders] = useState<Record<string, any[]>>({})
   const [vadeForms, setVadeForms] = useState<Record<string, string>>({})
@@ -178,26 +178,42 @@ export default function TenantDealersPage() {
     if (!f?.amount) return
     setSavingPayment(dealerId)
     const amount = parseFloat(f.amount)
+    const selectedOrderId = f.order_id || ''
     await supabase.from('dealer_payments').insert({ tenant_id: tenantId, dealer_id: dealerId, amount, note: f.note?.trim() || null })
-    setPaymentForm(prev => ({ ...prev, [dealerId]: { amount: '', note: '' } }))
+    setPaymentForm(prev => ({ ...prev, [dealerId]: { amount: '', note: '', order_id: '' } }))
 
-    // Ödeme dağıtımı: eskiden yeniye siparişlere uygula
-    const allPaid = (dealerPayments[dealerId] || []).reduce((s: number, p: any) => s + Number(p.amount), 0) + amount
     const dOrders = dealerOrders[dealerId] || []
     const vadeDays = dealers.find(d => d.id === dealerId)?.payment_terms ?? 30
-    let remaining = allPaid
-    for (const o of dOrders) {
-      const oTotal = Number(o.total)
-      let newStatus: string
-      let received: number
-      if (remaining >= oTotal) { newStatus = 'PAID'; received = oTotal; remaining -= oTotal }
-      else if (remaining > 0) { newStatus = 'PARTIAL'; received = remaining; remaining = 0 }
-      else {
-        received = 0
-        const vadeDate = new Date(o.created_at); vadeDate.setDate(vadeDate.getDate() + vadeDays)
-        newStatus = vadeDate < new Date() ? 'LATE' : 'PENDING'
+    const allPaid = (dealerPayments[dealerId] || []).reduce((s: number, p: any) => s + Number(p.amount), 0) + amount
+
+    if (selectedOrderId) {
+      // Belirli siparişe uygula
+      const o = dOrders.find((x: any) => x.id === selectedOrderId)
+      if (o) {
+        const oTotal = Number(o.total)
+        const prevReceived = Number(o.payment_received || 0)
+        const newReceived = Math.min(oTotal, prevReceived + amount)
+        const newStatus = newReceived >= oTotal ? 'PAID' : newReceived > 0 ? 'PARTIAL' : (() => {
+          const vadeDate = new Date(o.created_at); vadeDate.setDate(vadeDate.getDate() + vadeDays)
+          return vadeDate < new Date() ? 'LATE' : 'PENDING'
+        })()
+        await supabase.from('orders').update({ payment_status: newStatus, payment_received: newReceived }).eq('id', o.id)
       }
-      await supabase.from('orders').update({ payment_status: newStatus, payment_received: received }).eq('id', o.id)
+    } else {
+      // Otomatik dağıtım: eskiden yeniye
+      let remaining = allPaid
+      for (const o of dOrders) {
+        const oTotal = Number(o.total)
+        let newStatus: string; let received: number
+        if (remaining >= oTotal) { newStatus = 'PAID'; received = oTotal; remaining -= oTotal }
+        else if (remaining > 0) { newStatus = 'PARTIAL'; received = remaining; remaining = 0 }
+        else {
+          received = 0
+          const vadeDate = new Date(o.created_at); vadeDate.setDate(vadeDate.getDate() + vadeDays)
+          newStatus = vadeDate < new Date() ? 'LATE' : 'PENDING'
+        }
+        await supabase.from('orders').update({ payment_status: newStatus, payment_received: received }).eq('id', o.id)
+      }
     }
 
     setDealerBalance(prev => {
@@ -575,16 +591,9 @@ export default function TenantDealersPage() {
                                               </td>
                                               <td style={{ padding: '7px 10px', fontWeight: 600 }}>₺{Number(o.total).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</td>
                                               <td style={{ padding: '7px 10px' }}>
-                                                <select
-                                                  value={ps}
-                                                  onChange={e => updateOrderPaymentStatus(o.id, d.id, e.target.value)}
-                                                  style={{ padding: '3px 7px', borderRadius: 8, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', background: psStyle.bg, color: psStyle.color, outline: 'none' }}
-                                                >
-                                                  <option value="PAID">Ödeme Alındı</option>
-                                                  <option value="PARTIAL">Kısmi Ödeme</option>
-                                                  <option value="LATE">Ödeme Gecikti</option>
-                                                  <option value="PENDING">Bekliyor</option>
-                                                </select>
+                                                <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: psStyle.bg, color: psStyle.color, whiteSpace: 'nowrap' }}>
+                                                  {psStyle.label}
+                                                </span>
                                               </td>
                                               <td style={{ padding: '7px 10px' }}>
                                                 {(() => {
@@ -592,16 +601,8 @@ export default function TenantDealersPage() {
                                                   const received = Number(o.payment_received || 0)
                                                   const kalan = oTotal - received
                                                   return (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                                      <input
-                                                        type="number" min="0" max={oTotal}
-                                                        defaultValue={received}
-                                                        onBlur={e => {
-                                                          const val = Math.min(oTotal, Math.max(0, parseFloat(e.target.value) || 0))
-                                                          updateOrderPaymentReceived(o.id, d.id, val, oTotal, vade, o.created_at)
-                                                        }}
-                                                        style={{ width: 72, padding: '3px 6px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 6, fontSize: 11, outline: 'none', textAlign: 'right' }}
-                                                      />
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                                      {received > 0 && <span style={{ fontSize: 11, color: '#16a34a' }}>₺{received.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ödendi</span>}
                                                       {kalan > 0 && (
                                                         <span style={{ fontSize: 11, color: '#dc2626', whiteSpace: 'nowrap' }}>
                                                           kalan ₺{kalan.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
@@ -661,9 +662,18 @@ export default function TenantDealersPage() {
                               {/* Ödeme ekle formu */}
                               <div>
                                 <div style={{ fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Ödeme Al</div>
-                                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                  <input type="number" min={0} step="0.01" placeholder="Tutar ₺" value={payF.amount} onChange={e => setPaymentForm(prev => ({ ...prev, [d.id]: { ...payF, amount: e.target.value } }))} style={{ ...inputSm, width: 120 }} />
-                                  <input type="text" placeholder="Not (opsiyonel)" value={payF.note} onChange={e => setPaymentForm(prev => ({ ...prev, [d.id]: { ...payF, note: e.target.value } }))} style={{ ...inputSm, flex: 1 }} />
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                  <input type="number" min={0} step="0.01" placeholder="Tutar ₺" value={payF.amount} onChange={e => setPaymentForm(prev => ({ ...prev, [d.id]: { ...payF, amount: e.target.value } }))} style={{ ...inputSm, width: 110 }} />
+                                  <select value={payF.order_id || ''} onChange={e => setPaymentForm(prev => ({ ...prev, [d.id]: { ...payF, order_id: e.target.value } }))}
+                                    style={{ ...inputSm, flex: 1, minWidth: 140 }}>
+                                    <option value="">Otomatik dağıt</option>
+                                    {(dealerOrders[d.id] || []).filter((o: any) => o.payment_status !== 'PAID').map((o: any) => (
+                                      <option key={o.id} value={o.id}>
+                                        {o.order_no || o.id.slice(0,8)} — ₺{Number(o.total).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <input type="text" placeholder="Not (opsiyonel)" value={payF.note} onChange={e => setPaymentForm(prev => ({ ...prev, [d.id]: { ...payF, note: e.target.value } }))} style={{ ...inputSm, flex: 1, minWidth: 120 }} />
                                   <button onClick={() => savePayment(d.id)} disabled={savingPayment === d.id || !payF.amount}
                                     style={{ padding: '5px 14px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 500, cursor: !payF.amount ? 'not-allowed' : 'pointer', opacity: !payF.amount ? 0.4 : 1 }}>
                                     {savingPayment === d.id ? '...' : 'Kaydet'}

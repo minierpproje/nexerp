@@ -168,15 +168,18 @@ export default function TenantDashboard() {
         </div>
 
         {/* Kartlar */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Toplam Sipariş', value: orders.length },
-            { label: 'Bekleyen Onay', value: orders.filter(o => o.status === 'PENDING').length },
-            { label: 'Aktif Bayi', value: dealers.length },
+            { label: 'Toplam Sipariş', value: orders.length, isMoney: false },
+            { label: 'Bekleyen Onay', value: orders.filter(o => o.status === 'PENDING').length, isMoney: false },
+            { label: 'Aktif Bayi', value: dealers.length, isMoney: false },
+            { label: 'Toplam Sipariş Tutarı', value: orders.filter(o => o.status !== 'CANCELLED').reduce((s: number, o: any) => s + Number(o.total || 0), 0), isMoney: true },
           ].map(card => (
             <div key={card.label} style={{ background: 'white', border: '1px solid rgba(15,15,15,0.1)', borderRadius: 12, padding: '16px 18px' }}>
               <div style={{ fontSize: 11, color: '#888', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{card.label}</div>
-              <div style={{ fontFamily: 'Georgia, serif', fontSize: 28, letterSpacing: -1 }}>{card.value}</div>
+              <div style={{ fontFamily: 'Georgia, serif', fontSize: 28, letterSpacing: -1 }}>
+                {card.isMoney ? `₺${Number(card.value).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}` : card.value}
+              </div>
             </div>
           ))}
         </div>

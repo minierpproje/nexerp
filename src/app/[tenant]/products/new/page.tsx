@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+
+type Level = { id: string; name: string; sort_order: number }
+type LevelValue = { id: string; name: string }
 
 export default function NewProductPage() {
   const router = useRouter()
@@ -11,11 +14,55 @@ export default function NewProductPage() {
   const slug = params.tenant as string
   const supabase = createClient()
 
-  const [form, setForm] = useState({
-    code: '', name: '', category: '', unit: 'Adet', base_price: '', vat_rate: '20'
-  })
+  const [form, setForm] = useState({ code: '', name: '', unit: 'Adet', base_price: '', vat_rate: '20' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [tenantId, setTenantId] = useState<string | null>(null)
+  const [levels, setLevels] = useState<Level[]>([])
+  const [levelValues, setLevelValues] = useState<Record<string, LevelValue[]>>({})
+  const [catData, setCatData] = useState<Record<string, string>>({})
+  const [customMode, setCustomMode] = useState<Record<string, boolean>>({})
+  const [savingCat, setSavingCat] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user) { router.push(`/${slug}/login`); return }
+
+      const { data: tenant } = await supabase.from('tenants').select('id').eq('slug', slug).single()
+      if (!tenant) return
+      setTenantId(tenant.id)
+
+      const { data: lvls } = await supabase
+        .from('product_category_levels').select('id, name, sort_order')
+        .eq('tenant_id', tenant.id).order('sort_order')
+
+      if (lvls && lvls.length > 0) {
+        setLevels(lvls)
+        const entries = await Promise.all(lvls.map(async l => {
+          const { data } = await supabase
+            .from('product_category_values').select('id, name')
+            .eq('tenant_id', tenant.id).eq('level_id', l.id).order('name')
+          return [l.id, data || []] as [string, LevelValue[]]
+        }))
+        setLevelValues(Object.fromEntries(entries))
+      }
+    }
+    load()
+  }, [slug])
+
+  async function handleAddValue(levelId: string) {
+    const name = (catData[levelId] || '').trim()
+    if (!name || !tenantId || savingCat) return
+    setSavingCat(levelId)
+    await supabase.from('product_category_values').insert({ tenant_id: tenantId, level_id: levelId, name })
+    const { data } = await supabase
+      .from('product_category_values').select('id, name')
+      .eq('tenant_id', tenantId).eq('level_id', levelId).order('name')
+    setLevelValues(prev => ({ ...prev, [levelId]: data || [] }))
+    setCustomMode(prev => ({ ...prev, [levelId]: false }))
+    setSavingCat(null)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -26,19 +73,17 @@ export default function NewProductPage() {
     if (!user) { router.push(`/${slug}/login`); return }
 
     const { data: tenantData } = await supabase
-      .from('tenants')
-      .select('id')
-      .eq('slug', slug)
-      .eq('owner_id', user.id)
-      .single()
-
+      .from('tenants').select('id').eq('slug', slug).eq('owner_id', user.id).single()
     if (!tenantData) { setError('Tenant bulunamadı.'); setLoading(false); return }
+
+    const categoryLabel = levels.map(l => catData[l.id] || '').filter(Boolean).join(' / ')
 
     const { error: insertError } = await supabase.from('dealer_products').insert({
       tenant_id: tenantData.id,
       code: form.code,
       name: form.name,
-      category: form.category,
+      category: categoryLabel || null,
+      category_data: Object.keys(catData).length > 0 ? catData : null,
       unit: form.unit,
       base_price: parseFloat(form.base_price),
       vat_rate: parseFloat(form.vat_rate),
@@ -68,13 +113,11 @@ export default function NewProductPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f2ec' }}>
       <div style={{ width: 480, background: 'white', borderRadius: 14, padding: 32, border: '1px solid rgba(15,15,15,0.1)' }}>
-        <Link href={`/${slug}/products`} style={{ fontSize: 12, color: '#888', textDecoration: 'none' }}>← Ürünler</Link>
+        <Link href={`/${slug}/products`} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'rgba(15,15,15,0.07)', borderRadius: 8, fontSize: 13, color: '#374151', textDecoration: 'none', fontWeight: 500 }}>← Ürünler</Link>
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 26, marginBottom: 24, marginTop: 12 }}>Yeni Ürün</h1>
 
         {error && (
-          <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>
-            {error}
-          </div>
+          <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>{error}</div>
         )}
 
         <form onSubmit={handleSubmit}>
@@ -84,24 +127,62 @@ export default function NewProductPage() {
               <input type="text" value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} required placeholder="PRD-001" style={inputStyle} />
             </div>
             <div>
-              <label style={labelStyle}>Kategori</label>
-              <input type="text" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Temizlik" style={inputStyle} />
+              <label style={labelStyle}>Ürün Adı *</label>
+              <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="Deterjan 5L" style={inputStyle} />
             </div>
           </div>
 
-          <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>Ürün Adı *</label>
-            <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required placeholder="Deterjan 5L" style={inputStyle} />
-          </div>
+          {levels.length > 0 && (
+            <div style={{ display: 'grid', gridTemplateColumns: levels.length === 1 ? '1fr' : '1fr 1fr', gap: 14, marginBottom: 14 }}>
+              {levels.map(level => {
+                const opts = levelValues[level.id] || []
+                const isCustom = customMode[level.id]
+                const val = catData[level.id] || ''
+                return (
+                  <div key={level.id}>
+                    <label style={labelStyle}>{level.name}</label>
+                    {opts.length > 0 && !isCustom ? (
+                      <select value={val} onChange={e => {
+                        if (e.target.value === '__custom__') {
+                          setCustomMode(prev => ({ ...prev, [level.id]: true }))
+                          setCatData(prev => ({ ...prev, [level.id]: '' }))
+                        } else {
+                          setCatData(prev => ({ ...prev, [level.id]: e.target.value }))
+                        }
+                      }} style={inputStyle}>
+                        <option value="">— Seçin —</option>
+                        {opts.map(o => <option key={o.id} value={o.name}>{o.name}</option>)}
+                        <option value="__custom__">+ Yeni ekle...</option>
+                      </select>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <input type="text" value={val}
+                          onChange={e => setCatData(prev => ({ ...prev, [level.id]: e.target.value }))}
+                          onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddValue(level.id))}
+                          placeholder={level.name + ' adı'}
+                          style={{ ...inputStyle, flex: 1 }} autoFocus={isCustom} />
+                        <button type="button" onClick={() => handleAddValue(level.id)}
+                          disabled={!val.trim() || savingCat === level.id}
+                          style={{ padding: '0 12px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: val.trim() ? 'pointer' : 'not-allowed', opacity: val.trim() ? 1 : 0.4, whiteSpace: 'nowrap' }}>
+                          {savingCat === level.id ? '...' : 'Ekle'}
+                        </button>
+                        {opts.length > 0 && (
+                          <button type="button" onClick={() => { setCustomMode(prev => ({ ...prev, [level.id]: false })); setCatData(prev => ({ ...prev, [level.id]: '' })) }}
+                            style={{ padding: '0 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, background: 'white', cursor: 'pointer', fontSize: 16, color: '#888' }}>×</button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14, marginBottom: 24 }}>
             <div>
               <label style={labelStyle}>Birim</label>
               <select value={form.unit} onChange={e => setForm({ ...form, unit: e.target.value })} style={inputStyle}>
-                <option>Adet</option>
-                <option>Koli</option>
-                <option>Kg</option>
-                <option>Lt</option>
+                <option>Adet</option><option>Koli</option><option>Kg</option><option>Lt</option>
               </select>
             </div>
             <div>
@@ -111,9 +192,7 @@ export default function NewProductPage() {
             <div>
               <label style={labelStyle}>KDV (%)</label>
               <select value={form.vat_rate} onChange={e => setForm({ ...form, vat_rate: e.target.value })} style={inputStyle}>
-                <option value="20">%20</option>
-                <option value="10">%10</option>
-                <option value="0">%0</option>
+                <option value="20">%20</option><option value="10">%10</option><option value="0">%0</option>
               </select>
             </div>
           </div>

@@ -264,7 +264,7 @@ export default function TenantOrdersPage() {
         <div style={{ fontSize: 36, marginBottom: 16 }}>🔒</div>
         <h2 style={{ fontFamily: 'Georgia, serif', fontSize: 22, marginBottom: 10 }}>Hesabınız Askıya Alındı</h2>
         <p style={{ fontSize: 14, color: '#666', lineHeight: 1.6, marginBottom: 24 }}>Hesabınıza erişim geçici olarak kapatılmıştır. Daha fazla bilgi için yetkili ile iletişime geçin.</p>
-        <button onClick={async () => { await supabase.auth.signOut(); window.location.href = `/${slug}/login` }}
+        <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/' }}
           style={{ padding: '10px 24px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
           Çıkış Yap
         </button>
@@ -336,14 +336,6 @@ export default function TenantOrdersPage() {
             <button onClick={() => { setShowForm(!showForm); setLines([]); setSelectedCats({}) }}
               style={{ padding: '9px 18px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
               {showForm ? 'İptal' : '+ Yeni Sipariş'}
-            </button>
-            <button onClick={async () => {
-              const { createClient } = await import('@/lib/supabase/client')
-              const sb = createClient()
-              await sb.auth.signOut()
-              window.location.href = `/${slug}/login`
-            }} style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>
-              Çıkış
             </button>
           </div>
         </div>

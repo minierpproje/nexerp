@@ -103,8 +103,6 @@ export default function StockPage() {
           <div style={{ display: 'flex', gap: 8 }}>
             <Link href={`/${slug}/products/new`} style={{ padding: '7px 14px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, textDecoration: 'none', fontWeight: 500 }}>+ Ürün Ekle</Link>
             <Link href={`/${slug}/settings`} style={{ padding: '7px 14px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#666' }}>Ayarlar</Link>
-            <button onClick={async () => { await supabase.auth.signOut(); router.push(isSuperAdmin ? '/login' : `/${slug}/login`) }}
-              style={{ padding: '7px 14px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer', color: '#666' }}>Çıkış</button>
           </div>
         </div>
 

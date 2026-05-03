@@ -194,15 +194,21 @@ export default function LandingPage() {
             İlk modül ₺{BASE.toLocaleString('tr-TR')}/ay · Her ek modül +₺{EXTRA}/ay
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 28 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
             {MODULES.map((m) => {
               const isSel = selected.includes(m.id)
               const selIdx = selected.indexOf(m.id)
               const price = selIdx === 0 ? BASE : EXTRA
               return (
                 <div key={m.id} onClick={() => toggleModule(m.id)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 4px', cursor: 'pointer', userSelect: 'none', borderBottom: '1px solid rgba(15,15,15,0.07)' }}>
-                  {/* Yuvarlak seçici */}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 14,
+                    padding: '14px 20px', cursor: 'pointer', userSelect: 'none',
+                    borderRadius: 100,
+                    border: isSel ? '2px solid #2d7a57' : '1.5px solid rgba(15,15,15,0.15)',
+                    background: isSel ? '#f0fdf6' : 'white',
+                    transition: 'all 0.15s',
+                  }}>
                   <span style={{
                     width: 22, height: 22, borderRadius: '50%', flexShrink: 0,
                     border: isSel ? 'none' : '2px solid rgba(15,15,15,0.2)',
@@ -212,21 +218,13 @@ export default function LandingPage() {
                   }}>
                     {isSel && <span style={{ color: 'white', fontSize: 11, fontWeight: 700 }}>✓</span>}
                   </span>
-                  <span style={{ fontSize: 20, flexShrink: 0 }}>{m.icon}</span>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{m.icon}</span>
                   <span style={{ flex: 1 }}>
-                    <span style={{ fontSize: 15, fontFamily: 'sans-serif', fontWeight: isSel ? 600 : 400, color: isSel ? '#0f0f0f' : 'rgba(15,15,15,0.75)' }}>{m.name}</span>
-                    <span style={{ fontSize: 12, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.45)', marginLeft: 8 }}>{m.short}</span>
+                    <span style={{ fontSize: 14, fontFamily: 'sans-serif', fontWeight: isSel ? 600 : 400, color: isSel ? '#0f0f0f' : 'rgba(15,15,15,0.75)' }}>{m.name}</span>
                   </span>
-                  {isSel && (
-                    <span style={{ fontSize: 14, fontFamily: 'sans-serif', fontWeight: 600, color: '#2d7a57', flexShrink: 0 }}>
-                      ₺{price.toLocaleString('tr-TR')}/ay{selIdx > 0 ? ' ek' : ''}
-                    </span>
-                  )}
-                  {!isSel && (
-                    <span style={{ fontSize: 13, fontFamily: 'sans-serif', color: 'rgba(15,15,15,0.3)', flexShrink: 0 }}>
-                      +{selIdx === -1 && selected.length === 0 ? `₺${BASE.toLocaleString('tr-TR')}` : `₺${EXTRA}`}
-                    </span>
-                  )}
+                  <span style={{ fontSize: 13, fontFamily: 'sans-serif', fontWeight: isSel ? 600 : 400, color: isSel ? '#2d7a57' : 'rgba(15,15,15,0.3)', flexShrink: 0 }}>
+                    {isSel ? `₺${price.toLocaleString('tr-TR')}/ay${selIdx > 0 ? ' ek' : ''}` : `₺${(selected.length === 0 ? BASE : EXTRA).toLocaleString('tr-TR')}`}
+                  </span>
                 </div>
               )
             })}

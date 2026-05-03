@@ -112,10 +112,6 @@ function TenantHubInner() {
     setAddingModule(null)
   }
 
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    router.push(`/${slug}/login`)
-  }
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f2ec' }}>
@@ -131,14 +127,9 @@ function TenantHubInner() {
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 40 }}>
           <div>
-            <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: '#2d7a57', marginBottom: 6 }}>SimpleORder</div>
             <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 30, letterSpacing: -1, margin: 0 }}>{tenant?.name}</h1>
             <p style={{ fontSize: 13, color: '#888', marginTop: 6 }}>Çalışmak istediğiniz modülü seçin.</p>
           </div>
-          <button onClick={handleSignOut}
-            style={{ padding: '7px 14px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer', color: '#666' }}>
-            Çıkış
-          </button>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

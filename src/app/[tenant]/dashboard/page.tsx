@@ -164,8 +164,6 @@ export default function TenantDashboard() {
             {(tenant?.modules || []).includes('gider') && <Link href={`/${slug}/gider`} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f' }}>Gider</Link>}
             {(tenant?.modules || []).includes('aktivite') && <Link href={`/${slug}/aktivite`} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f' }}>Aktivite</Link>}
             <Link href={`/${slug}/settings`} style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, textDecoration: 'none', color: '#0f0f0f' }}>Ayarlar</Link>
-            <button onClick={async () => { await supabase.auth.signOut(); window.location.href = '/login' }}
-              style={{ padding: '8px 16px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>Çıkış</button>
           </div>
         </div>
 

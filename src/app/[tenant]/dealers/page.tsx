@@ -458,18 +458,12 @@ export default function TenantDealersPage() {
                           {/* Kota & Ödeme */}
                           {tab === 'kota' && (
                             <div style={{ display: 'grid', gap: 16 }}>
-                              {/* Borç özeti */}
+                              {/* Sipariş tutarı özeti */}
                               <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                                {[
-                                  { label: 'Açık Siparişler', value: `₺${bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, color: '#374151' },
-                                  { label: 'Toplam Ödeme', value: `₺${bal.paid.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, color: '#16a34a' },
-                                  { label: borç > 0 ? 'Net Borç' : 'Net Alacak', value: `₺${Math.abs(borç).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}`, color: borç > 0 ? '#dc2626' : '#16a34a' },
-                                ].map(item => (
-                                  <div key={item.label} style={{ background: 'white', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '10px 16px', minWidth: 120 }}>
-                                    <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>{item.label}</div>
-                                    <div style={{ fontSize: 16, fontWeight: 600, color: item.color }}>{item.value}</div>
-                                  </div>
-                                ))}
+                                <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '10px 16px', minWidth: 140 }}>
+                                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Toplam Sipariş Tutarı</div>
+                                  <div style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>₺{bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
+                                </div>
                               </div>
 
                               {/* Kota kullanım */}

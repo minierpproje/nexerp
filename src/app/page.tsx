@@ -15,15 +15,6 @@ const MODULES = [
     videoUrl: '',
   },
   {
-    id: 'aktivite',
-    name: 'Aktivite Yönetimi',
-    short: 'Firma aktiviteleri & raporlar',
-    icon: '📋',
-    desc: 'Saha ekibinizin firma ziyaretlerini, aktivitelerini ve saat girişlerini kayıt altına alın. Firma bazlı rate yönetimi ve fatura takibiyle operasyonel maliyetlerinizi kontrol edin.',
-    features: ['Aktivite ve saat girişi', 'Firma bazlı rate yönetimi', 'Fatura ve ödeme takibi', 'Rate özeti raporları'],
-    videoUrl: '',
-  },
-  {
     id: 'stock',
     name: 'Stok Yönetimi',
     short: 'Envanter & hareketler',
@@ -34,8 +25,8 @@ const MODULES = [
   },
   {
     id: 'crm',
-    name: 'CRM',
-    short: 'Müşteri ilişkileri yönetimi',
+    name: 'Müşteri Bilgileri Yönetimi',
+    short: 'Müşteri kayıt & takip',
     icon: '👥',
     desc: 'Müşteri portföyünüzü merkezi bir veritabanında tutun. Excel ile toplu import/export, bölge & şehir bazlı filtreleme ve müşteri notlarıyla ilişkilerinizi güçlendirin.',
     features: ['Müşteri kayıt ve takibi', 'Excel import / export', 'Bölge & şehir filtreleri', 'Notlar ve adres yönetimi'],
@@ -43,11 +34,20 @@ const MODULES = [
   },
   {
     id: 'gider',
-    name: 'Gider Takibi',
+    name: 'Gider Takip Yönetimi',
     short: 'Harcama ve gider yönetimi',
     icon: '💰',
     desc: 'Şirket harcamalarınızı kategori bazlı kayıt altına alın. Dönemsel raporlarla gider trendlerinizi analiz edin ve bütçe kontrolünü elinizde tutun.',
     features: ['Gider kategorileri', 'Harcama girişi ve listesi', 'Dönemsel raporlama', 'Bütçe takibi'],
+    videoUrl: '',
+  },
+  {
+    id: 'aktivite',
+    name: 'Aktivite Yönetimi',
+    short: 'Firma aktiviteleri & raporlar',
+    icon: '📋',
+    desc: 'Saha ekibinizin firma ziyaretlerini, aktivitelerini ve saat girişlerini kayıt altına alın. Firma bazlı rate yönetimi ve fatura takibiyle operasyonel maliyetlerinizi kontrol edin.',
+    features: ['Aktivite ve saat girişi', 'Firma bazlı rate yönetimi', 'Fatura ve ödeme takibi', 'Rate özeti raporları'],
     videoUrl: '',
   },
 ]

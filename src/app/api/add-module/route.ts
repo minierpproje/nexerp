@@ -6,7 +6,7 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const VALID_MODULES = ['dealer_orders', 'stock']
+const VALID_MODULES = ['dealer_orders', 'stock', 'crm', 'gider', 'aktivite']
 
 export async function POST(req: NextRequest) {
   const { tenantId, module } = await req.json()

@@ -132,6 +132,9 @@ export default function PlatformLoginPage() {
         <p style={{ textAlign: 'center', fontSize: 13, color: '#888', marginTop: 20 }}>
           Hesabın yok mu? <Link href="/register" style={{ color: '#0f0f0f', fontWeight: 500 }}>Kayıt ol</Link>
         </p>
+        <p style={{ textAlign: 'center', marginTop: 12 }}>
+          <Link href="/" style={{ fontSize: 12, color: '#aaa', textDecoration: 'none' }}>← Anasayfa</Link>
+        </p>
       </div>
     </div>
   )

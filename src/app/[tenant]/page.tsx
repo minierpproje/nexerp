@@ -45,10 +45,10 @@ const MODULE_META: Record<string, { label: string; desc: string; href: string; i
 
 const ALL_MODULES = [
   { id: 'dealer_orders', name: 'Bayi Sipariş Yönetimi', icon: '🏪', desc: 'Siparişleri yönet, bayileri takip et.', bg: '#e8f0ec' },
-  { id: 'aktivite', name: 'Aktivite Yönetimi', icon: '📋', desc: 'Saha aktivitelerini kaydet, firma bazlı takip et.', bg: '#fef3e2' },
   { id: 'stock', name: 'Stok Yönetimi', icon: '📦', desc: 'Ürün stok miktarlarını görüntüle ve güncelle.', bg: '#e8f0fb' },
-  { id: 'crm', name: 'Müşteri Bilgi Sistemi', icon: '👥', desc: 'Müşteri listesini yönet, iletişim bilgilerini takip et.', bg: '#f3e8ff' },
+  { id: 'crm', name: 'Müşteri Bilgileri Yönetimi', icon: '👥', desc: 'Müşteri listesini yönet, iletişim bilgilerini takip et.', bg: '#f3e8ff' },
   { id: 'gider', name: 'Gider Takip Yönetimi', icon: '💸', desc: 'Giderleri kategorize et, grafik ve tablo ile analiz et.', bg: '#fff0e8' },
+  { id: 'aktivite', name: 'Aktivite Yönetimi', icon: '📋', desc: 'Saha aktivitelerini kaydet, firma bazlı takip et.', bg: '#fef3e2' },
 ]
 
 function TenantHubInner() {
@@ -87,21 +87,11 @@ function TenantHubInner() {
     const mods: string[] = tenantData.modules || []
     setModules(mods)
 
-    if (!forceSelect) {
-      const stored = localStorage.getItem(`lastModule_${slug}`)
-      if (stored && mods.includes(stored)) {
-        const dest: Record<string, string> = { dealer_orders: 'dashboard', stock: 'stock', aktivite: 'aktivite', crm: 'crm', gider: 'gider' }
-        const href = dest[stored]
-        if (href) { router.push(`/${slug}/${href}`); return }
-      }
-    }
-
     setTenant(tenantData)
     setLoading(false)
   }
 
   function goToModule(key: string) {
-    localStorage.setItem(`lastModule_${slug}`, key)
     const meta = MODULE_META[key]
     if (meta) router.push(`/${slug}/${meta.href}`)
   }

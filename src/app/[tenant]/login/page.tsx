@@ -124,6 +124,7 @@ export default function TenantLoginPage() {
         <div style={{ fontFamily: 'Georgia, serif', fontSize: 13, color: '#2d7a57', marginBottom: 8 }}>{slug}</div>
         <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 26, marginBottom: 6 }}>Giriş Yap</h1>
         <p style={{ fontSize: 13, color: '#888', marginBottom: 24 }}>Hesabınıza giriş yapın.</p>
+        <Link href="/" style={{ display: 'inline-block', fontSize: 12, color: '#aaa', textDecoration: 'none', marginBottom: 16 }}>← Anasayfa</Link>
 
         {error && (
           <div style={{ background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: 8, fontSize: 13, marginBottom: 16 }}>

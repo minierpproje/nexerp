@@ -51,6 +51,9 @@ export default function TenantDealersPage() {
   const [savingPrice, setSavingPrice] = useState<string | null>(null)
   const [paymentForm, setPaymentForm] = useState<Record<string, { amount: string; note: string }>>({})
   const [savingPayment, setSavingPayment] = useState<string | null>(null)
+  const [dealerOrders, setDealerOrders] = useState<Record<string, any[]>>({})
+  const [vadeForms, setVadeForms] = useState<Record<string, string>>({})
+  const [savingVade, setSavingVade] = useState<string | null>(null)
 
   useEffect(() => { loadData() }, [])
 
@@ -124,11 +127,13 @@ export default function TenantDealersPage() {
   }
 
   async function loadKotaAndPayments(dealerId: string) {
-    const [{ data: payments }, { data: activeOrders }] = await Promise.all([
+    const [{ data: payments }, { data: activeOrders }, { data: allOrders }] = await Promise.all([
       supabase.from('dealer_payments').select('*').eq('dealer_id', dealerId).order('created_at', { ascending: false }),
       supabase.from('orders').select('id').eq('dealer_id', dealerId).not('status', 'in', '("DELIVERED","CANCELLED")'),
+      supabase.from('orders').select('id, order_no, created_at, total, status').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: false }),
     ])
     setDealerPayments(prev => ({ ...prev, [dealerId]: payments || [] }))
+    setDealerOrders(prev => ({ ...prev, [dealerId]: allOrders || [] }))
 
     if (activeOrders && activeOrders.length > 0) {
       const { data: items } = await supabase.from('order_items').select('product_id, quantity').in('order_id', activeOrders.map((o: any) => o.id))
@@ -142,6 +147,15 @@ export default function TenantDealersPage() {
     } else {
       setDealerKota(prev => ({ ...prev, [dealerId]: { byProduct: {}, totalQty: 0 } }))
     }
+  }
+
+  async function saveVade(dealerId: string) {
+    const val = parseInt(vadeForms[dealerId])
+    if (isNaN(val) || val < 0) return
+    setSavingVade(dealerId)
+    await supabase.from('dealers').update({ payment_terms: val }).eq('id', dealerId)
+    setDealers(prev => prev.map(d => d.id === dealerId ? { ...d, payment_terms: val } : d))
+    setSavingVade(null)
   }
 
   async function savePrice(dealerId: string) {
@@ -341,14 +355,14 @@ export default function TenantDealersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f5f2ec' }}>
-                {['', 'Kod', 'Firma', 'Kategori', 'Bölge', 'Bakiye', 'Durum'].map(h => (
+                {['', 'Kod', 'Firma', 'Kategori', 'Bölge', 'Vade (gün)', 'Bakiye', 'Durum'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid rgba(15,15,15,0.08)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {dealers.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: '#888' }}>Henüz bayi yok</td></tr>
+                <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: '#888' }}>Henüz bayi yok</td></tr>
               ) : dealers.map(d => {
                 const tab = expandedTab[d.id] || 'branches'
                 const prices = dealerPrices[d.id] || []
@@ -379,12 +393,22 @@ export default function TenantDealersPage() {
                         </select>
                       </td>
                       <td style={{ padding: '12px 14px', color: '#666' }}>{d.region || '—'}</td>
+                      <td style={{ padding: '8px 14px' }} onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <input
+                            type="number" min="0"
+                            value={vadeForms[d.id] !== undefined ? vadeForms[d.id] : (d.payment_terms ?? 30)}
+                            onChange={e => setVadeForms(prev => ({ ...prev, [d.id]: e.target.value }))}
+                            onBlur={() => saveVade(d.id)}
+                            style={{ width: 52, padding: '4px 6px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 6, fontSize: 12, outline: 'none', textAlign: 'center' }}
+                          />
+                          <span style={{ fontSize: 11, color: '#aaa' }}>gün</span>
+                        </div>
+                      </td>
                       <td style={{ padding: '12px 14px' }}>
-                        {bal.ordersTotal > 0 ? (
-                          <span style={{ fontWeight: 600, fontSize: 12, color: borç > 0 ? '#dc2626' : '#16a34a' }}>
-                            {borç > 0 ? `₺${borç.toLocaleString('tr-TR', { maximumFractionDigits: 0 })} borç` : `₺${Math.abs(borç).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} alacak`}
-                          </span>
-                        ) : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
+                        {bal.ordersTotal > 0
+                          ? <span style={{ fontWeight: 600, fontSize: 12, color: '#374151' }}>₺{bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</span>
+                          : <span style={{ color: '#ccc', fontSize: 12 }}>—</span>}
                       </td>
                       <td style={{ padding: '12px 14px' }}>
                         <button onClick={() => toggleStatus(d)} title={d.status === 'ACTIVE' ? 'Pasife al' : 'Aktife al'}
@@ -395,7 +419,7 @@ export default function TenantDealersPage() {
                     </tr>
                     {expandedId === d.id && (
                       <tr key={d.id + '-detail'} style={{ borderBottom: '1px solid rgba(15,15,15,0.06)' }}>
-                        <td colSpan={7} style={{ padding: '0 16px 16px 44px', background: '#fafaf8' }}>
+                        <td colSpan={8} style={{ padding: '0 16px 16px 44px', background: '#fafaf8' }}>
                           {/* Sekme bar */}
                           <div style={{ display: 'flex', borderBottom: '1px solid rgba(15,15,15,0.08)', marginBottom: 14 }}>
                             {(['branches', 'prices', 'kota'] as const).map(t => (
@@ -465,6 +489,52 @@ export default function TenantDealersPage() {
                                   <div style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>₺{bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
                                 </div>
                               </div>
+
+                              {/* Siparişler vade tarihleriyle */}
+                              {(() => {
+                                const dOrders = dealerOrders[d.id] || []
+                                if (dOrders.length === 0) return null
+                                const vade = d.payment_terms ?? 30
+                                return (
+                                  <div>
+                                    <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Siparişler & Vade</div>
+                                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                                      <thead>
+                                        <tr style={{ background: '#f5f5f5' }}>
+                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Durum'].map(h => (
+                                            <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#888', fontWeight: 500, borderBottom: '1px solid rgba(15,15,15,0.08)' }}>{h}</th>
+                                          ))}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {dOrders.map((o: any) => {
+                                          const orderDate = new Date(o.created_at)
+                                          const vadeDate = new Date(orderDate)
+                                          vadeDate.setDate(vadeDate.getDate() + vade)
+                                          const isOverdue = vadeDate < new Date() && o.status !== 'DELIVERED'
+                                          const statusLabels: Record<string, string> = { PENDING: 'Bekliyor', CONFIRMED: 'Onaylandı', PROCESSING: 'Hazırlanıyor', SHIPPED: 'Yolda', DELIVERED: 'Teslim' }
+                                          return (
+                                            <tr key={o.id} style={{ borderBottom: '1px solid rgba(15,15,15,0.05)' }}>
+                                              <td style={{ padding: '7px 10px', fontFamily: 'monospace', color: '#666' }}>{o.order_no || '—'}</td>
+                                              <td style={{ padding: '7px 10px', color: '#666' }}>{orderDate.toLocaleDateString('tr-TR')}</td>
+                                              <td style={{ padding: '7px 10px', fontWeight: 500, color: isOverdue ? '#dc2626' : '#374151' }}>
+                                                {vadeDate.toLocaleDateString('tr-TR')}
+                                                {isOverdue && <span style={{ marginLeft: 4, fontSize: 10, background: '#fef2f2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>gecikmiş</span>}
+                                              </td>
+                                              <td style={{ padding: '7px 10px', fontWeight: 600 }}>₺{Number(o.total).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</td>
+                                              <td style={{ padding: '7px 10px' }}>
+                                                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: o.status === 'DELIVERED' ? '#f0fdf4' : '#fdf3e0', color: o.status === 'DELIVERED' ? '#16a34a' : '#b87d1a' }}>
+                                                  {statusLabels[o.status] || o.status}
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          )
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                )
+                              })()}
 
                               {/* Kota kullanım */}
                               {cat && kota && (() => {

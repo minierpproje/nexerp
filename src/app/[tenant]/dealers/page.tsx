@@ -130,7 +130,7 @@ export default function TenantDealersPage() {
     const [{ data: payments }, { data: activeOrders }, { data: allOrders }] = await Promise.all([
       supabase.from('dealer_payments').select('*').eq('dealer_id', dealerId).order('created_at', { ascending: false }),
       supabase.from('orders').select('id').eq('dealer_id', dealerId).not('status', 'in', '("DELIVERED","CANCELLED")'),
-      supabase.from('orders').select('id, order_no, created_at, total, status').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: false }),
+      supabase.from('orders').select('id, order_no, created_at, total, status, payment_status').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: true }),
     ])
     setDealerPayments(prev => ({ ...prev, [dealerId]: payments || [] }))
     setDealerOrders(prev => ({ ...prev, [dealerId]: allOrders || [] }))
@@ -180,12 +180,40 @@ export default function TenantDealersPage() {
     const amount = parseFloat(f.amount)
     await supabase.from('dealer_payments').insert({ tenant_id: tenantId, dealer_id: dealerId, amount, note: f.note?.trim() || null })
     setPaymentForm(prev => ({ ...prev, [dealerId]: { amount: '', note: '' } }))
+
+    // Ödeme dağıtımı: eskiden yeniye siparişlere uygula
+    const allPaid = (dealerPayments[dealerId] || []).reduce((s: number, p: any) => s + Number(p.amount), 0) + amount
+    const orders = dealerOrders[dealerId] || []
+    let remaining = allPaid
+    for (const o of orders) {
+      const oTotal = Number(o.total)
+      let newStatus: string
+      if (remaining >= oTotal) { newStatus = 'PAID'; remaining -= oTotal }
+      else if (remaining > 0) { newStatus = 'PARTIAL'; remaining = 0 }
+      else {
+        const vade = dealers.find(d => d.id === dealerId)?.payment_terms ?? 30
+        const vadeDate = new Date(o.created_at); vadeDate.setDate(vadeDate.getDate() + vade)
+        newStatus = vadeDate < new Date() ? 'LATE' : 'PENDING'
+      }
+      if (newStatus !== o.payment_status) {
+        await supabase.from('orders').update({ payment_status: newStatus }).eq('id', o.id)
+      }
+    }
+
     setDealerBalance(prev => {
       const b = prev[dealerId] || { ordersTotal: 0, paid: 0 }
       return { ...prev, [dealerId]: { ...b, paid: b.paid + amount } }
     })
     await loadKotaAndPayments(dealerId)
     setSavingPayment(null)
+  }
+
+  async function updateOrderPaymentStatus(orderId: string, dealerId: string, status: string) {
+    await supabase.from('orders').update({ payment_status: status }).eq('id', orderId)
+    setDealerOrders(prev => ({
+      ...prev,
+      [dealerId]: (prev[dealerId] || []).map(o => o.id === orderId ? { ...o, payment_status: status } : o)
+    }))
   }
 
   async function deletePayment(dealerId: string, paymentId: string, amount: number) {
@@ -490,18 +518,26 @@ export default function TenantDealersPage() {
                                 </div>
                               </div>
 
-                              {/* Siparişler vade tarihleriyle */}
+                              {/* Siparişler & Vade — sadece kotasız bayilerde */}
                               {(() => {
+                                const hasKota = cat && (cat.rules?.total_quota || (cat.rules?.product_quotas?.length ?? 0) > 0 || cat.rules?.amount_quota)
+                                if (hasKota) return null
                                 const dOrders = dealerOrders[d.id] || []
                                 if (dOrders.length === 0) return null
                                 const vade = d.payment_terms ?? 30
+                                const psColors: Record<string, { bg: string; color: string; label: string }> = {
+                                  PAID:    { bg: '#f0fdf4', color: '#16a34a', label: 'Ödeme Alındı' },
+                                  PARTIAL: { bg: '#fefce8', color: '#ca8a04', label: 'Kısmi Ödeme' },
+                                  LATE:    { bg: '#fef2f2', color: '#dc2626', label: 'Ödeme Gecikti' },
+                                  PENDING: { bg: '#fdf3e0', color: '#b87d1a', label: 'Bekliyor' },
+                                }
                                 return (
                                   <div>
                                     <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Siparişler & Vade</div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                       <thead>
                                         <tr style={{ background: '#f5f5f5' }}>
-                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Durum'].map(h => (
+                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Ödeme Durumu'].map(h => (
                                             <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#888', fontWeight: 500, borderBottom: '1px solid rgba(15,15,15,0.08)' }}>{h}</th>
                                           ))}
                                         </tr>
@@ -511,21 +547,29 @@ export default function TenantDealersPage() {
                                           const orderDate = new Date(o.created_at)
                                           const vadeDate = new Date(orderDate)
                                           vadeDate.setDate(vadeDate.getDate() + vade)
-                                          const isOverdue = vadeDate < new Date() && o.status !== 'DELIVERED'
-                                          const statusLabels: Record<string, string> = { PENDING: 'Bekliyor', CONFIRMED: 'Onaylandı', PROCESSING: 'Hazırlanıyor', SHIPPED: 'Yolda', DELIVERED: 'Teslim' }
+                                          const isOverdue = vadeDate < new Date()
+                                          // Kaydedilmiş payment_status yoksa hesapla
+                                          const ps = o.payment_status || (isOverdue ? 'LATE' : 'PENDING')
+                                          const psStyle = psColors[ps] || psColors['PENDING']
                                           return (
                                             <tr key={o.id} style={{ borderBottom: '1px solid rgba(15,15,15,0.05)' }}>
                                               <td style={{ padding: '7px 10px', fontFamily: 'monospace', color: '#666' }}>{o.order_no || '—'}</td>
                                               <td style={{ padding: '7px 10px', color: '#666' }}>{orderDate.toLocaleDateString('tr-TR')}</td>
-                                              <td style={{ padding: '7px 10px', fontWeight: 500, color: isOverdue ? '#dc2626' : '#374151' }}>
+                                              <td style={{ padding: '7px 10px', fontWeight: 500, color: isOverdue && ps !== 'PAID' ? '#dc2626' : '#374151' }}>
                                                 {vadeDate.toLocaleDateString('tr-TR')}
-                                                {isOverdue && <span style={{ marginLeft: 4, fontSize: 10, background: '#fef2f2', color: '#dc2626', padding: '1px 5px', borderRadius: 4 }}>gecikmiş</span>}
                                               </td>
                                               <td style={{ padding: '7px 10px', fontWeight: 600 }}>₺{Number(o.total).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</td>
                                               <td style={{ padding: '7px 10px' }}>
-                                                <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 10, background: o.status === 'DELIVERED' ? '#f0fdf4' : '#fdf3e0', color: o.status === 'DELIVERED' ? '#16a34a' : '#b87d1a' }}>
-                                                  {statusLabels[o.status] || o.status}
-                                                </span>
+                                                <select
+                                                  value={ps}
+                                                  onChange={e => updateOrderPaymentStatus(o.id, d.id, e.target.value)}
+                                                  style={{ padding: '3px 7px', borderRadius: 8, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', background: psStyle.bg, color: psStyle.color, outline: 'none' }}
+                                                >
+                                                  <option value="PAID">Ödeme Alındı</option>
+                                                  <option value="PARTIAL">Kısmi Ödeme</option>
+                                                  <option value="LATE">Ödeme Gecikti</option>
+                                                  <option value="PENDING">Bekliyor</option>
+                                                </select>
                                               </td>
                                             </tr>
                                           )

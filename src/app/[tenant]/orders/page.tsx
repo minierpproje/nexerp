@@ -276,11 +276,11 @@ export default function TenantOrdersPage() {
   const filteredProducts = getFilteredProducts()
 
   const openAmt = kotaSummary?.openAmount || 0
-  const netBorç = openAmt - totalPaid
+  const totalOrderAmt = orders.filter(o => o.status !== 'CANCELLED').reduce((s: number, o: any) => s + Number(o.total || 0), 0)
   const catTq = dealerCategoryRules?.total_quota || (dealerCategoryRules?.product_quota ? { value: dealerCategoryRules.product_quota, unit: dealerCategoryRules.product_quota_unit || 'adet' } : null)
   const catPqs: any[] = dealerCategoryRules?.product_quotas || []
   const catAq: number | null = dealerCategoryRules?.amount_quota || null
-  const showSummary = !!(kotaSummary || totalPaid > 0)
+  const showSummary = !!(kotaSummary || orders.length > 0)
   const kotaRows: { label: string; used: number; limit: number; unit: string }[] = []
   if (kotaSummary && catTq) kotaRows.push({ label: 'Toplam Kota', used: kotaSummary.totalQty, limit: catTq.value, unit: catTq.unit })
   if (kotaSummary) catPqs.forEach((q: any) => kotaRows.push({ label: q.product_name, used: kotaSummary.byProduct[q.product_id] || 0, limit: q.value, unit: q.unit }))
@@ -293,10 +293,9 @@ export default function TenantOrdersPage() {
         {/* Özet Kart */}
         {showSummary && (
           <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.1)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-            <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: kotaRows.length > 0 ? 14 : 0 }}>
-              <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Açık Siparişler</div><div style={{ fontSize: 15, fontWeight: 600 }}>₺{openAmt.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
-              <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Toplam Ödeme</div><div style={{ fontSize: 15, fontWeight: 600, color: '#16a34a' }}>₺{totalPaid.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
-              <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{netBorç > 0 ? 'Net Borcunuz' : 'Net Alacağınız'}</div><div style={{ fontSize: 15, fontWeight: 600, color: netBorç > 0 ? '#dc2626' : '#16a34a' }}>₺{Math.abs(netBorç).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
+            <div style={{ marginBottom: kotaRows.length > 0 ? 14 : 0 }}>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Toplam Sipariş Tutarı</div>
+              <div style={{ fontSize: 20, fontWeight: 600, letterSpacing: -0.5 }}>₺{totalOrderAmt.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
             </div>
             {kotaRows.length > 0 && (
               <div style={{ borderTop: '1px solid rgba(15,15,15,0.07)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>

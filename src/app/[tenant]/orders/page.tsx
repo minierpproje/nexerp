@@ -302,9 +302,9 @@ export default function TenantOrdersPage() {
               </div>
             ) : (
               <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: kotaRows.length > 0 ? 14 : 0 }}>
-                <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Açık Siparişler</div><div style={{ fontSize: 15, fontWeight: 600 }}>₺{openAmt.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
-                <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Toplam Ödeme</div><div style={{ fontSize: 15, fontWeight: 600, color: '#16a34a' }}>₺{totalPaid.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
-                <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>{netBorç > 0 ? 'Net Borcunuz' : 'Net Alacağınız'}</div><div style={{ fontSize: 15, fontWeight: 600, color: netBorç > 0 ? '#dc2626' : '#16a34a' }}>₺{Math.abs(netBorç).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
+                <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Toplam Sipariş Tutarı</div><div style={{ fontSize: 15, fontWeight: 600 }}>₺{openAmt.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
+                <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Ödenen Tutar</div><div style={{ fontSize: 15, fontWeight: 600, color: '#16a34a' }}>₺{totalPaid.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
+                <div><div style={{ fontSize: 11, color: '#888', marginBottom: 2 }}>Kalan Ödeme Tutarı</div><div style={{ fontSize: 15, fontWeight: 600, color: netBorç > 0 ? '#dc2626' : '#16a34a' }}>₺{Math.max(0, netBorç).toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div></div>
               </div>
             )}
             {kotaRows.length > 0 && (

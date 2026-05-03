@@ -542,12 +542,30 @@ export default function TenantDealersPage() {
                           {tab === 'kota' && (
                             <div style={{ display: 'grid', gap: 16 }}>
                               {/* Sipariş tutarı özeti */}
-                              <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-                                <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '10px 16px', minWidth: 140 }}>
-                                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Toplam Sipariş Tutarı</div>
-                                  <div style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>₺{bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
-                                </div>
-                              </div>
+                              {(() => {
+                                const hasKota = cat && (cat.rules?.total_quota || (cat.rules?.product_quotas?.length ?? 0) > 0 || cat.rules?.amount_quota)
+                                const kalan = Math.max(0, bal.ordersTotal - bal.paid)
+                                return (
+                                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                                    <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '10px 16px', minWidth: 140 }}>
+                                      <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Toplam Sipariş Tutarı</div>
+                                      <div style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>₺{bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
+                                    </div>
+                                    {!hasKota && (
+                                      <>
+                                        <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '10px 16px', minWidth: 140 }}>
+                                          <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Ödenen Tutar</div>
+                                          <div style={{ fontSize: 16, fontWeight: 600, color: '#16a34a' }}>₺{bal.paid.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
+                                        </div>
+                                        <div style={{ background: 'white', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '10px 16px', minWidth: 140 }}>
+                                          <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Kalan Ödeme Tutarı</div>
+                                          <div style={{ fontSize: 16, fontWeight: 600, color: kalan > 0 ? '#dc2626' : '#16a34a' }}>₺{kalan.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</div>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                )
+                              })()}
 
                               {/* Siparişler & Vade — sadece kotasız bayilerde */}
                               {(() => {

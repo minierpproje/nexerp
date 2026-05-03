@@ -130,7 +130,7 @@ export default function TenantDealersPage() {
     const [{ data: payments }, { data: activeOrders }, { data: allOrders }] = await Promise.all([
       supabase.from('dealer_payments').select('*').eq('dealer_id', dealerId).order('created_at', { ascending: false }),
       supabase.from('orders').select('id').eq('dealer_id', dealerId).not('status', 'in', '("DELIVERED","CANCELLED")'),
-      supabase.from('orders').select('id, order_no, created_at, total, status, payment_status').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: true }),
+      supabase.from('orders').select('id, order_no, created_at, total, status, payment_status, payment_received').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: true }),
     ])
     setDealerPayments(prev => ({ ...prev, [dealerId]: payments || [] }))
     setDealerOrders(prev => ({ ...prev, [dealerId]: allOrders || [] }))
@@ -183,21 +183,21 @@ export default function TenantDealersPage() {
 
     // Ödeme dağıtımı: eskiden yeniye siparişlere uygula
     const allPaid = (dealerPayments[dealerId] || []).reduce((s: number, p: any) => s + Number(p.amount), 0) + amount
-    const orders = dealerOrders[dealerId] || []
+    const dOrders = dealerOrders[dealerId] || []
+    const vadeDays = dealers.find(d => d.id === dealerId)?.payment_terms ?? 30
     let remaining = allPaid
-    for (const o of orders) {
+    for (const o of dOrders) {
       const oTotal = Number(o.total)
       let newStatus: string
-      if (remaining >= oTotal) { newStatus = 'PAID'; remaining -= oTotal }
-      else if (remaining > 0) { newStatus = 'PARTIAL'; remaining = 0 }
+      let received: number
+      if (remaining >= oTotal) { newStatus = 'PAID'; received = oTotal; remaining -= oTotal }
+      else if (remaining > 0) { newStatus = 'PARTIAL'; received = remaining; remaining = 0 }
       else {
-        const vade = dealers.find(d => d.id === dealerId)?.payment_terms ?? 30
-        const vadeDate = new Date(o.created_at); vadeDate.setDate(vadeDate.getDate() + vade)
+        received = 0
+        const vadeDate = new Date(o.created_at); vadeDate.setDate(vadeDate.getDate() + vadeDays)
         newStatus = vadeDate < new Date() ? 'LATE' : 'PENDING'
       }
-      if (newStatus !== o.payment_status) {
-        await supabase.from('orders').update({ payment_status: newStatus }).eq('id', o.id)
-      }
+      await supabase.from('orders').update({ payment_status: newStatus, payment_received: received }).eq('id', o.id)
     }
 
     setDealerBalance(prev => {
@@ -213,6 +213,21 @@ export default function TenantDealersPage() {
     setDealerOrders(prev => ({
       ...prev,
       [dealerId]: (prev[dealerId] || []).map(o => o.id === orderId ? { ...o, payment_status: status } : o)
+    }))
+  }
+
+  async function updateOrderPaymentReceived(orderId: string, dealerId: string, received: number, orderTotal: number, vadeDays: number, createdAt: string) {
+    let newStatus: string
+    if (received >= orderTotal) newStatus = 'PAID'
+    else if (received > 0) newStatus = 'PARTIAL'
+    else {
+      const vadeDate = new Date(createdAt); vadeDate.setDate(vadeDate.getDate() + vadeDays)
+      newStatus = vadeDate < new Date() ? 'LATE' : 'PENDING'
+    }
+    await supabase.from('orders').update({ payment_received: received, payment_status: newStatus }).eq('id', orderId)
+    setDealerOrders(prev => ({
+      ...prev,
+      [dealerId]: (prev[dealerId] || []).map(o => o.id === orderId ? { ...o, payment_received: received, payment_status: newStatus } : o)
     }))
   }
 
@@ -537,7 +552,7 @@ export default function TenantDealersPage() {
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                       <thead>
                                         <tr style={{ background: '#f5f5f5' }}>
-                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Ödeme Durumu'].map(h => (
+                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Ödeme Durumu', 'Ödenen / Kalan'].map(h => (
                                             <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#888', fontWeight: 500, borderBottom: '1px solid rgba(15,15,15,0.08)' }}>{h}</th>
                                           ))}
                                         </tr>
@@ -570,6 +585,31 @@ export default function TenantDealersPage() {
                                                   <option value="LATE">Ödeme Gecikti</option>
                                                   <option value="PENDING">Bekliyor</option>
                                                 </select>
+                                              </td>
+                                              <td style={{ padding: '7px 10px' }}>
+                                                {(() => {
+                                                  const oTotal = Number(o.total)
+                                                  const received = Number(o.payment_received || 0)
+                                                  const kalan = oTotal - received
+                                                  return (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                      <input
+                                                        type="number" min="0" max={oTotal}
+                                                        defaultValue={received}
+                                                        onBlur={e => {
+                                                          const val = Math.min(oTotal, Math.max(0, parseFloat(e.target.value) || 0))
+                                                          updateOrderPaymentReceived(o.id, d.id, val, oTotal, vade, o.created_at)
+                                                        }}
+                                                        style={{ width: 72, padding: '3px 6px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 6, fontSize: 11, outline: 'none', textAlign: 'right' }}
+                                                      />
+                                                      {kalan > 0 && (
+                                                        <span style={{ fontSize: 11, color: '#dc2626', whiteSpace: 'nowrap' }}>
+                                                          kalan ₺{kalan.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                  )
+                                                })()}
                                               </td>
                                             </tr>
                                           )

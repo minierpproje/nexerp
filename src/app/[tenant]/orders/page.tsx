@@ -38,6 +38,11 @@ export default function TenantOrdersPage() {
   const [kotaSummary, setKotaSummary] = useState<{ totalQty: number; byProduct: Record<string, number>; openAmount: number } | null>(null)
   const [totalPaid, setTotalPaid] = useState(0)
 
+  const [ordererRole, setOrdererRole] = useState('')
+  const [ordererName, setOrdererName] = useState('')
+  const [savedContacts, setSavedContacts] = useState<{name: string, role: string}[]>([])
+  const [savingContact, setSavingContact] = useState(false)
+
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
@@ -51,11 +56,15 @@ export default function TenantOrdersPage() {
     setHideBasePrice(tenantData.hide_base_price || false)
 
     const { data: dealerData } = await supabase
-      .from('dealers').select('id, status')
+      .from('dealers').select('id, status, contacts, hide_base_price')
       .eq('tenant_id', tenantData.id).eq('email', user.email).single()
     if (dealerData) {
       if (dealerData.status !== 'ACTIVE') { setBlocked(true); setLoading(false); return }
       setDealerId(dealerData.id)
+      setSavedContacts((dealerData as any).contacts || [])
+      if ((dealerData as any).hide_base_price !== null && (dealerData as any).hide_base_price !== undefined) {
+        setHideBasePrice((dealerData as any).hide_base_price)
+      }
       const [{ data: br }, { data: pricesData }, { data: dealerFull }, { data: paymentsData }, { data: activeOrders }] = await Promise.all([
         supabase.from('dealer_branches').select('*').eq('dealer_id', dealerData.id).order('name'),
         supabase.from('dealer_product_prices').select('product_id, price').eq('dealer_id', dealerData.id),
@@ -175,6 +184,18 @@ export default function TenantOrdersPage() {
     }, 0)
   }
 
+  function calcSubtotal() {
+    return lines.reduce((sum, l) => {
+      const p = products.find(x => x.id === l.product_id)
+      if (!p) return sum
+      return sum + getPrice(p) * l.qty
+    }, 0)
+  }
+
+  function calcVat() {
+    return calcTotal() - calcSubtotal()
+  }
+
   async function toggleDetail(orderId: string) {
     if (expandedId === orderId) { setExpandedId(null); return }
     setExpandedId(orderId)
@@ -187,6 +208,16 @@ export default function TenantOrdersPage() {
       setOrderItems(prev => ({ ...prev, [orderId]: data || [] }))
       setLoadingItems(null)
     }
+  }
+
+  async function saveContact() {
+    if (!ordererName.trim() || !dealerId) return
+    setSavingContact(true)
+    const newContact = { name: ordererName.trim(), role: ordererRole }
+    const newContacts = [...savedContacts, newContact]
+    await supabase.from('dealers').update({ contacts: newContacts }).eq('id', dealerId)
+    setSavedContacts(newContacts)
+    setSavingContact(false)
   }
 
   async function saveOrder() {
@@ -213,6 +244,8 @@ export default function TenantOrdersPage() {
       vat_amount: vatAmount,
       total: subtotal + vatAmount,
       delivery_date: isScheduled && deliveryDate ? deliveryDate : null,
+      orderer_role: ordererRole || null,
+      orderer_name: ordererName || null,
     }).select().single()
 
     if (newOrder) {
@@ -234,6 +267,7 @@ export default function TenantOrdersPage() {
 
     setLines([]); setNote(''); setSelectedBranch('')
     setIsScheduled(false); setDeliveryDate('')
+    setOrdererRole(''); setOrdererName('')
     setSelectedCats({}); setShowForm(false); setSaving(false)
     loadData()
   }
@@ -448,9 +482,19 @@ export default function TenantOrdersPage() {
                     </div>
                   )
                 })}
-                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 14px', fontSize: 14, fontWeight: 500, background: '#fafaf8' }}>
-                  <span style={{ color: '#888' }}>Toplam (KDV dahil)</span>
-                  <span>₺{calcTotal().toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
+                <div style={{ padding: '10px 14px', background: '#fafaf8' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#aaa', marginBottom: 3 }}>
+                    <span>Ara Toplam (KDV Hariç)</span>
+                    <span>₺{calcSubtotal().toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#aaa', marginBottom: 6 }}>
+                    <span>KDV</span>
+                    <span>₺{calcVat().toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 500 }}>
+                    <span>Toplam (KDV Dahil)</span>
+                    <span>₺{calcTotal().toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
+                  </div>
                 </div>
               </div>
             )}
@@ -498,6 +542,41 @@ export default function TenantOrdersPage() {
               placeholder="Sipariş notu (opsiyonel)"
               style={{ width: '100%', padding: '9px 12px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, outline: 'none', marginBottom: 16, boxSizing: 'border-box' }} />
 
+
+            {/* Sipariş Veren */}
+            <div style={{ marginBottom: 16, border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Sipariş Veren</div>
+              {savedContacts.length > 0 && (
+                <select defaultValue="" onChange={e => {
+                  const idx = parseInt(e.target.value)
+                  if (!isNaN(idx) && idx >= 0) { setOrdererName(savedContacts[idx].name); setOrdererRole(savedContacts[idx].role) }
+                  e.currentTarget.value = ""
+                }} style={{ width: '100%', padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, outline: 'none', marginBottom: 8 }}>
+                  <option value="">Kayıtlı kişi seç...</option>
+                  {savedContacts.map((cnt, i) => <option key={i} value={i}>{cnt.name}{cnt.role ? ` — ${cnt.role}` : ''}</option>)}
+                </select>
+              )}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                <select value={ordererRole} onChange={e => setOrdererRole(e.target.value)}
+                  style={{ flex: 1, padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, outline: 'none' }}>
+                  <option value="">— Görev tanımı —</option>
+                  <option value="Patron">Patron</option>
+                  <option value="Genel Müdür">Genel Müdür</option>
+                  <option value="Satınalma">Satınalma</option>
+                  <option value="Diğer">Diğer</option>
+                </select>
+                <input type="text" value={ordererName} onChange={e => setOrdererName(e.target.value)}
+                  placeholder="Ad Soyad"
+                  style={{ flex: 2, padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, outline: 'none' }} />
+              </div>
+              {ordererName.trim() && !savedContacts.find(cnt => cnt.name.toLowerCase() === ordererName.trim().toLowerCase()) && dealerId && (
+                <button type="button" onClick={saveContact} disabled={savingContact}
+                  style={{ fontSize: 12, color: '#2d7a57', background: 'none', border: '1px dashed #2d7a57', borderRadius: 6, padding: '4px 10px', cursor: 'pointer' }}>
+                  {savingContact ? '...' : '+ Kayıtlı kişilere ekle'}
+                </button>
+              )}
+            </div>
+
             <button onClick={saveOrder} disabled={saving || !lines.length || (isScheduled && !deliveryDate)}
               style={{ padding: '10px 24px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 500, cursor: (saving || !lines.length || (isScheduled && !deliveryDate)) ? 'not-allowed' : 'pointer', opacity: (saving || !lines.length || (isScheduled && !deliveryDate)) ? 0.5 : 1 }}>
               {saving ? 'Kaydediliyor...' : 'Siparişi Gönder'}
@@ -535,7 +614,14 @@ export default function TenantOrdersPage() {
                         ? <span style={{ background: '#fdf3e0', color: '#b87d1a', padding: '2px 8px', borderRadius: 6, fontSize: 11, fontWeight: 500 }}>{new Date(o.delivery_date + 'T00:00:00').toLocaleDateString('tr-TR')}</span>
                         : <span style={{ color: '#ccc' }}>—</span>}
                     </td>
-                    <td style={{ padding: '12px 14px', fontWeight: 500 }}>₺{Number(o.total).toLocaleString('tr-TR')}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontWeight: 500 }}>₺{Number(o.total).toLocaleString('tr-TR')}</div>
+                      {o.subtotal != null && o.vat_amount != null && (
+                        <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>
+                          Matrah ₺{Number(o.subtotal).toLocaleString('tr-TR')} + KDV ₺{Number(o.vat_amount).toLocaleString('tr-TR')}
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: '12px 14px', color: '#888', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.note || '—'}</td>
                     <td style={{ padding: '12px 14px' }}>
                       <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 20, fontWeight: 500, background: statusColor[o.status]?.bg, color: statusColor[o.status]?.color, whiteSpace: 'nowrap' }}>
@@ -546,6 +632,12 @@ export default function TenantOrdersPage() {
                   {expandedId === o.id && (
                     <tr key={o.id + '-detail'} style={{ borderBottom: '1px solid rgba(15,15,15,0.06)' }}>
                       <td colSpan={8} style={{ padding: '0 16px 16px 44px', background: '#fafaf8' }}>
+                        {(o.orderer_name || o.orderer_role) && (
+                          <div style={{ fontSize: 12, color: '#555', paddingTop: 10, marginBottom: 8 }}>
+                            <strong>Sipariş Veren:</strong> {o.orderer_name || '—'}{o.orderer_role ? <span style={{ color: '#888', marginLeft: 6 }}>({o.orderer_role})</span> : null}
+                          </div>
+                        )}
+
                         {loadingItems === o.id ? (
                           <p style={{ fontSize: 13, color: '#aaa', padding: '12px 0' }}>Yükleniyor...</p>
                         ) : (orderItems[o.id] || []).length === 0 ? (
@@ -577,9 +669,21 @@ export default function TenantOrdersPage() {
                                   </tr>
                                 )
                               })}
+                              {o.subtotal != null && (
+                                <tr>
+                                  <td colSpan={4} style={{ padding: '6px 10px', textAlign: 'right', color: '#aaa', borderTop: '1px solid rgba(15,15,15,0.06)', fontSize: 11 }}>Ara Toplam (KDV Hariç)</td>
+                                  <td style={{ padding: '6px 10px', color: '#555', fontSize: 12, borderTop: '1px solid rgba(15,15,15,0.06)' }}>₺{Number(o.subtotal).toLocaleString('tr-TR')}</td>
+                                </tr>
+                              )}
+                              {o.vat_amount != null && (
+                                <tr>
+                                  <td colSpan={4} style={{ padding: '6px 10px', textAlign: 'right', color: '#aaa', fontSize: 11 }}>KDV</td>
+                                  <td style={{ padding: '6px 10px', color: '#555', fontSize: 12 }}>₺{Number(o.vat_amount).toLocaleString('tr-TR')}</td>
+                                </tr>
+                              )}
                               <tr>
-                                <td colSpan={4} style={{ padding: '8px 10px', textAlign: 'right', color: '#888', borderTop: '1px solid rgba(15,15,15,0.06)', fontSize: 12 }}>Toplam (KDV dahil)</td>
-                                <td style={{ padding: '8px 10px', fontWeight: 600, color: '#0f0f0f', borderTop: '1px solid rgba(15,15,15,0.06)' }}>₺{Number(o.total).toLocaleString('tr-TR')}</td>
+                                <td colSpan={4} style={{ padding: '8px 10px', textAlign: 'right', color: '#888', fontSize: 12 }}>Toplam (KDV Dahil)</td>
+                                <td style={{ padding: '8px 10px', fontWeight: 600, color: '#0f0f0f' }}>₺{Number(o.total).toLocaleString('tr-TR')}</td>
                               </tr>
                             </tbody>
                           </table>

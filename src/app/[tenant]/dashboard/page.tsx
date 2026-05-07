@@ -265,7 +265,7 @@ export default function TenantDashboard() {
                       <td colSpan={10} style={{ padding: '0 16px 16px 52px', background: '#fafaf8' }}>
                         {/* Şube + teslimat özeti */}
                         {(o.dealer_branches?.name || o.delivery_date) && (
-                          <div style={{ display: 'flex', gap: 20, marginBottom: 10, paddingTop: 12, fontSize: 12, color: '#555' }}>
+                          <div style={{ display: 'flex', gap: 20, marginBottom: 10, paddingTop: 12, fontSize: 12, color: '#555', flexWrap: 'wrap' }}>
                             {o.dealer_branches?.name && (
                               <span>📍 <strong>Şube:</strong> {o.dealer_branches.name}</span>
                             )}
@@ -275,6 +275,11 @@ export default function TenantDashboard() {
                             {o.note && (
                               <span>📝 <strong>Not:</strong> {o.note}</span>
                             )}
+                          </div>
+                        )}
+                        {(o.orderer_name || o.orderer_role) && (
+                          <div style={{ paddingTop: (o.dealer_branches?.name || o.delivery_date) ? 0 : 12, marginBottom: 10, fontSize: 12, color: '#555' }}>
+                            👤 <strong>Sipariş Veren:</strong> {o.orderer_name || '—'}{o.orderer_role ? <span style={{ color: '#888', marginLeft: 6 }}>({o.orderer_role})</span> : null}
                           </div>
                         )}
                         {loadingItems === o.id ? (

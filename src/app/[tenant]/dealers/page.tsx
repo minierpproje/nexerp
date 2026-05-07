@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
 
-type Dealer = { id: string; code: string; name: string; email: string; phone: string; region: string; payment_terms: number; status: string; category_id: string | null }
+type Dealer = { id: string; code: string; name: string; email: string; phone: string; region: string; payment_terms: number; status: string; category_id: string | null; hide_base_price: boolean | null; notes: string | null }
 type Branch = { id: string; name: string; address: string | null; contact_person: string | null; phone: string | null }
 type DealerPrice = { id: string; product_id: string; price: number; dealer_products: { name: string; base_price: number; unit: string } }
 type DealerPayment = { id: string; amount: number; note: string | null; created_at: string }
@@ -40,7 +40,7 @@ export default function TenantDealersPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [products, setProducts] = useState<{ id: string; name: string; unit: string }[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [expandedTab, setExpandedTab] = useState<Record<string, 'branches' | 'prices' | 'kota'>>({})
+  const [expandedTab, setExpandedTab] = useState<Record<string, 'branches' | 'prices' | 'kota' | 'notlar'>>({})
   const [loadingBranches, setLoadingBranches] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [showCatPanel, setShowCatPanel] = useState(false)
@@ -54,6 +54,17 @@ export default function TenantDealersPage() {
   const [dealerOrders, setDealerOrders] = useState<Record<string, any[]>>({})
   const [vadeForms, setVadeForms] = useState<Record<string, string>>({})
   const [savingVade, setSavingVade] = useState<string | null>(null)
+
+  const [editingNotes, setEditingNotes] = useState<Record<string, string>>({})
+  const [savingNotes, setSavingNotes] = useState<string | null>(null)
+  const [showManualOrder, setShowManualOrder] = useState<string | null>(null)
+  const [manualOrderLines, setManualOrderLines] = useState<{product_id: string, qty: number}[]>([])
+  const [manualOrderNote, setManualOrderNote] = useState('')
+  const [manualOrderBranch, setManualOrderBranch] = useState('')
+  const [manualOrdererRole, setManualOrdererRole] = useState('')
+  const [manualOrdererName, setManualOrdererName] = useState('')
+  const [savingManualOrder, setSavingManualOrder] = useState(false)
+  const [manualOrderCustomPrices, setManualOrderCustomPrices] = useState<Record<string, number>>({})
 
   useEffect(() => { loadData() }, [])
 
@@ -115,10 +126,16 @@ export default function TenantDealersPage() {
     }
   }
 
-  async function switchTab(dealerId: string, tab: 'branches' | 'prices' | 'kota') {
+  async function switchTab(dealerId: string, tab: 'branches' | 'prices' | 'kota' | 'notlar') {
     setExpandedTab(prev => ({ ...prev, [dealerId]: tab }))
     if (tab === 'prices' && !dealerPrices[dealerId]) await loadPrices(dealerId)
     if (tab === 'kota' && !dealerPayments[dealerId]) await loadKotaAndPayments(dealerId)
+    if (tab === 'notlar') {
+      const d = dealers.find(x => x.id === dealerId)
+      if (d && editingNotes[dealerId] === undefined) {
+        setEditingNotes(prev => ({ ...prev, [dealerId]: d.notes || '' }))
+      }
+    }
   }
 
   async function loadPrices(dealerId: string) {
@@ -130,7 +147,7 @@ export default function TenantDealersPage() {
     const [{ data: payments }, { data: activeOrders }, { data: allOrders }] = await Promise.all([
       supabase.from('dealer_payments').select('*').eq('dealer_id', dealerId).order('created_at', { ascending: false }),
       supabase.from('orders').select('id').eq('dealer_id', dealerId).not('status', 'in', '("DELIVERED","CANCELLED")'),
-      supabase.from('orders').select('id, order_no, created_at, total, status, payment_status, payment_received').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: true }),
+      supabase.from('orders').select('id, order_no, created_at, total, status, payment_status, payment_received, orderer_role, orderer_name').eq('dealer_id', dealerId).not('status', 'eq', 'CANCELLED').order('created_at', { ascending: true }),
     ])
     setDealerPayments(prev => ({ ...prev, [dealerId]: payments || [] }))
     setDealerOrders(prev => ({ ...prev, [dealerId]: allOrders || [] }))
@@ -255,6 +272,118 @@ export default function TenantDealersPage() {
       return { ...prev, [dealerId]: { ...b, paid: Math.max(0, b.paid - amount) } }
     })
     await loadKotaAndPayments(dealerId)
+  }
+
+  async function saveNotes(dealerId: string) {
+    setSavingNotes(dealerId)
+    const notes = editingNotes[dealerId] || ''
+    await supabase.from('dealers').update({ notes }).eq('id', dealerId)
+    setDealers(prev => prev.map(d => d.id === dealerId ? { ...d, notes } : d))
+    setSavingNotes(null)
+  }
+
+  async function toggleDealerHideBasePrice(dealerId: string, currentVal: boolean | null) {
+    const newVal = !currentVal
+    await supabase.from('dealers').update({ hide_base_price: newVal }).eq('id', dealerId)
+    setDealers(prev => prev.map(d => d.id === dealerId ? { ...d, hide_base_price: newVal } : d))
+  }
+
+  function downloadOrdersXLS(dealerName: string, dOrders: any[], vade: number) {
+    const psLabels: Record<string, string> = { PAID: 'Ödeme Alındı', PARTIAL: 'Kısmi', LATE: 'Gecikti', PENDING: 'Bekliyor' }
+    const rows = [
+      ['Sipariş No', 'Tarih', 'Vade Tarihi', 'Tutar', 'Ödeme Durumu', 'Sipariş Veren', 'Görev'],
+      ...dOrders.map(o => {
+        const od = new Date(o.created_at); const vd = new Date(od); vd.setDate(vd.getDate() + vade)
+        return [o.order_no || '—', od.toLocaleDateString('tr-TR'), vd.toLocaleDateString('tr-TR'),
+          `₺${Number(o.total).toLocaleString('tr-TR')}`, psLabels[o.payment_status] || '—',
+          o.orderer_name || '—', o.orderer_role || '—']
+      })
+    ]
+    const csv = rows.map(r => r.join('\t')).join('\n')
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/tab-separated-values;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `siparisler-${dealerName}.xls`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function downloadPaymentsXLS(dealerName: string, payments: DealerPayment[]) {
+    const rows = [
+      ['Tarih', 'Tutar', 'Not'],
+      ...payments.map(p => [new Date(p.created_at).toLocaleDateString('tr-TR'), `₺${Number(p.amount).toLocaleString('tr-TR')}`, p.note || '—'])
+    ]
+    const csv = rows.map(r => r.join('\t')).join('\n')
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/tab-separated-values;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `odemeler-${dealerName}.xls`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  function downloadOrdersPDF(dealerName: string, dOrders: any[], vade: number) {
+    const win = window.open('', '_blank')!
+    const psLabels: Record<string, string> = { PAID: 'Ödeme Alındı', PARTIAL: 'Kısmi', LATE: 'Gecikti', PENDING: 'Bekliyor' }
+    const rows = dOrders.map(o => {
+      const od = new Date(o.created_at); const vd = new Date(od); vd.setDate(vd.getDate() + vade)
+      return `<tr><td>${o.order_no||'—'}</td><td>${od.toLocaleDateString('tr-TR')}</td><td>${vd.toLocaleDateString('tr-TR')}</td><td><strong>₺${Number(o.total).toLocaleString('tr-TR')}</strong></td><td>${psLabels[o.payment_status]||'—'}</td><td>${o.orderer_name||'—'}</td><td>${o.orderer_role||'—'}</td></tr>`
+    }).join('')
+    win.document.write(`<!DOCTYPE html><html><head><title>Siparişler — ${dealerName}</title><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}h2{font-size:14px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:5px 8px;border:1px solid #ccc;text-align:left}th{background:#f5f5f5;font-weight:600}@media print{@page{margin:1cm;size:A4 landscape}}</style></head><body><h2>Siparişler — ${dealerName}</h2><p style="color:#888;font-size:10px">Oluşturulma: ${new Date().toLocaleDateString('tr-TR')}</p><table><thead><tr><th>Sipariş No</th><th>Sipariş Tarihi</th><th>Vade Tarihi</th><th>Tutar</th><th>Ödeme Durumu</th><th>Sipariş Veren</th><th>Görev</th></tr></thead><tbody>${rows}</tbody></table></body></html>`)
+    win.document.close(); setTimeout(() => win.print(), 300)
+  }
+
+  function downloadPaymentsPDF(dealerName: string, payments: DealerPayment[]) {
+    const win = window.open('', '_blank')!
+    const rows = payments.map(p => `<tr><td>${new Date(p.created_at).toLocaleDateString('tr-TR')}</td><td style="color:green"><strong>₺${Number(p.amount).toLocaleString('tr-TR')}</strong></td><td>${p.note||'—'}</td></tr>`).join('')
+    win.document.write(`<!DOCTYPE html><html><head><title>Ödemeler — ${dealerName}</title><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:11px;margin:20px}h2{font-size:14px}table{width:100%;border-collapse:collapse;margin-top:12px}th,td{padding:5px 8px;border:1px solid #ccc;text-align:left}th{background:#f5f5f5;font-weight:600}@media print{@page{margin:1cm}}</style></head><body><h2>Ödeme Geçmişi — ${dealerName}</h2><p style="color:#888;font-size:10px">Oluşturulma: ${new Date().toLocaleDateString('tr-TR')}</p><table><thead><tr><th>Tarih</th><th>Tutar</th><th>Not</th></tr></thead><tbody>${rows}</tbody></table></body></html>`)
+    win.document.close(); setTimeout(() => win.print(), 300)
+  }
+
+  async function openManualOrder(dealerId: string) {
+    const { data: pricesData } = await supabase
+      .from('dealer_product_prices').select('product_id, price').eq('dealer_id', dealerId)
+    const cpMap: Record<string, number> = {}
+    ;(pricesData || []).forEach((p: any) => { cpMap[p.product_id] = p.price })
+    setManualOrderCustomPrices(cpMap)
+    if (!branches[dealerId]) {
+      const { data } = await supabase.from('dealer_branches').select('*').eq('dealer_id', dealerId).order('name')
+      setBranches(prev => ({ ...prev, [dealerId]: data || [] }))
+    }
+    setManualOrderLines([])
+    setManualOrderNote(''); setManualOrderBranch(''); setManualOrdererRole(''); setManualOrdererName('')
+    setShowManualOrder(dealerId)
+  }
+
+  async function saveManualOrder() {
+    const dealerId = showManualOrder
+    if (!dealerId || !manualOrderLines.length) return
+    setSavingManualOrder(true)
+    const orderNo = `ORD-${new Date().getFullYear()}-M${String(Date.now()).slice(-5)}`
+    let subtotal = 0, vatAmount = 0
+    manualOrderLines.forEach(l => {
+      const p = products.find(x => x.id === l.product_id) as any
+      if (p) { const pr = manualOrderCustomPrices[l.product_id] ?? p.base_price ?? 0; subtotal += pr * l.qty; vatAmount += pr * l.qty * ((p.vat_rate || 0) / 100) }
+    })
+    const { data: newOrder } = await supabase.from('orders').insert({
+      tenant_id: tenantId, dealer_id: dealerId,
+      branch_id: manualOrderBranch || undefined,
+      order_no: orderNo, status: 'PENDING',
+      note: manualOrderNote || null, subtotal, vat_amount: vatAmount, total: subtotal + vatAmount,
+      orderer_role: manualOrdererRole || null, orderer_name: manualOrdererName || null,
+    }).select().single()
+    if (newOrder) {
+      for (const l of manualOrderLines) {
+        const p = products.find(x => x.id === l.product_id) as any
+        if (p) {
+          const pr = manualOrderCustomPrices[l.product_id] ?? p.base_price ?? 0
+          await supabase.from('order_items').insert({ order_id: newOrder.id, product_id: l.product_id, quantity: l.qty, unit_price: pr, vat_rate: p.vat_rate || 0, line_total: pr * l.qty })
+        }
+      }
+    }
+    setDealerBalance(prev => {
+      const b = prev[dealerId] || { ordersTotal: 0, paid: 0 }
+      return { ...prev, [dealerId]: { ...b, ordersTotal: b.ordersTotal + subtotal + vatAmount } }
+    })
+    if (dealerPayments[dealerId] !== undefined) await loadKotaAndPayments(dealerId)
+    setSavingManualOrder(false)
+    setShowManualOrder(null)
   }
 
   async function saveCategory() {
@@ -414,7 +543,7 @@ export default function TenantDealersPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#f5f2ec' }}>
-                {['', 'Kod', 'Firma', 'Kategori', 'Bölge', 'Vade (gün)', 'Bakiye', 'Durum'].map(h => (
+                {['', 'Kod', 'Firma', 'Kategori', 'Bölge', 'Vade (gün)', 'Özel Fiyat', 'Bakiye', 'Durum'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid rgba(15,15,15,0.08)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -464,6 +593,14 @@ export default function TenantDealersPage() {
                           <span style={{ fontSize: 11, color: '#aaa' }}>gün</span>
                         </div>
                       </td>
+                      <td style={{ padding: '8px 14px' }} onClick={e => e.stopPropagation()}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                          <input type="checkbox" checked={d.hide_base_price === true}
+                            onChange={() => toggleDealerHideBasePrice(d.id, d.hide_base_price)}
+                            style={{ width: 14, height: 14, accentColor: '#2d7a57', cursor: 'pointer' }} />
+                          <span style={{ fontSize: 11, color: '#666' }}>Sadece özel</span>
+                        </label>
+                      </td>
                       <td style={{ padding: '12px 14px' }}>
                         {bal.ordersTotal > 0
                           ? <span style={{ fontWeight: 600, fontSize: 12, color: '#374151' }}>₺{bal.ordersTotal.toLocaleString('tr-TR', { maximumFractionDigits: 0 })}</span>
@@ -478,13 +615,13 @@ export default function TenantDealersPage() {
                     </tr>
                     {expandedId === d.id && (
                       <tr key={d.id + '-detail'} style={{ borderBottom: '1px solid rgba(15,15,15,0.06)' }}>
-                        <td colSpan={8} style={{ padding: '0 16px 16px 44px', background: '#fafaf8' }}>
+                        <td colSpan={9} style={{ padding: '0 16px 16px 44px', background: '#fafaf8' }}>
                           {/* Sekme bar */}
                           <div style={{ display: 'flex', borderBottom: '1px solid rgba(15,15,15,0.08)', marginBottom: 14 }}>
-                            {(['branches', 'prices', 'kota'] as const).map(t => (
+                            {(['branches', 'prices', 'kota', 'notlar'] as const).map(t => (
                               <button key={t} onClick={() => switchTab(d.id, t)}
                                 style={{ padding: '8px 16px', fontSize: 12, fontWeight: 500, border: 'none', borderBottom: tab === t ? '2px solid #0f0f0f' : '2px solid transparent', background: 'none', cursor: 'pointer', color: tab === t ? '#0f0f0f' : '#888', marginBottom: -1 }}>
-                                {t === 'branches' ? `Şubeler${(branches[d.id] || []).length > 0 ? ` (${branches[d.id].length})` : ''}` : t === 'prices' ? `Özel Fiyatlar${prices.length > 0 ? ` (${prices.length})` : ''}` : 'Kota & Ödeme'}
+                                {t === 'branches' ? `Şubeler${(branches[d.id] || []).length > 0 ? ` (${branches[d.id].length})` : ''}` : t === 'prices' ? `Özel Fiyatlar${prices.length > 0 ? ` (${prices.length})` : ''}` : t === 'kota' ? 'Kota & Ödeme' : 'Notlar'}
                               </button>
                             ))}
                           </div>
@@ -582,11 +719,17 @@ export default function TenantDealersPage() {
                                 }
                                 return (
                                   <div>
-                                    <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Siparişler & Vade</div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Siparişler & Vade</div>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                      <button onClick={() => downloadOrdersXLS(d.name, dealerOrders[d.id] || [], d.payment_terms ?? 30)} style={{ fontSize: 11, padding: '3px 9px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 5, cursor: 'pointer' }}>Excel</button>
+                                      <button onClick={() => downloadOrdersPDF(d.name, dealerOrders[d.id] || [], d.payment_terms ?? 30)} style={{ fontSize: 11, padding: '3px 9px', background: '#e8f0fb', color: '#2563a8', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer' }}>PDF</button>
+                                    </div>
+                                  </div>
                                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                       <thead>
                                         <tr style={{ background: '#f5f5f5' }}>
-                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Ödeme Durumu', 'Ödenen / Kalan'].map(h => (
+                                          {['Sipariş No', 'Sipariş Tarihi', 'Vade Tarihi', 'Tutar', 'Ödeme Durumu', 'Sipariş Veren', 'Ödenen / Kalan'].map(h => (
                                             <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#888', fontWeight: 500, borderBottom: '1px solid rgba(15,15,15,0.08)' }}>{h}</th>
                                           ))}
                                         </tr>
@@ -612,6 +755,10 @@ export default function TenantDealersPage() {
                                                 <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: psStyle.bg, color: psStyle.color, whiteSpace: 'nowrap' }}>
                                                   {psStyle.label}
                                                 </span>
+                                              </td>
+                                              <td style={{ padding: '7px 10px', fontSize: 11 }}>
+                                                {o.orderer_name ? <div style={{ fontWeight: 500 }}>{o.orderer_name}</div> : <span style={{ color: '#ccc' }}>—</span>}
+                                                {o.orderer_role && <div style={{ color: '#888' }}>{o.orderer_role}</div>}
                                               </td>
                                               <td style={{ padding: '7px 10px' }}>
                                                 {(() => {
@@ -699,12 +846,26 @@ export default function TenantDealersPage() {
                                 </div>
                               </div>
 
+                              {/* Manuel Sipariş Ekle */}
+                              <div style={{ borderTop: '1px solid rgba(15,15,15,0.08)', paddingTop: 14 }}>
+                                <button onClick={() => openManualOrder(d.id)}
+                                  style={{ padding: '8px 18px', background: '#2d7a57', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>
+                                  + Bu Bayiye Manuel Sipariş Ekle
+                                </button>
+                              </div>
+
                               {/* Ödeme geçmişi */}
                               {payments === undefined ? (
                                 <p style={{ fontSize: 13, color: '#aaa' }}>Yükleniyor...</p>
                               ) : payments.length > 0 ? (
                                 <div>
-                                  <div style={{ fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Ödeme Geçmişi</div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                    <div style={{ fontSize: 11, color: '#888', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Ödeme Geçmişi</div>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                      <button onClick={() => downloadPaymentsXLS(d.name, payments)} style={{ fontSize: 11, padding: '3px 9px', background: '#f0fdf4', color: '#16a34a', border: '1px solid #bbf7d0', borderRadius: 5, cursor: 'pointer' }}>Excel</button>
+                                      <button onClick={() => downloadPaymentsPDF(d.name, payments)} style={{ fontSize: 11, padding: '3px 9px', background: '#e8f0fb', color: '#2563a8', border: '1px solid #bfdbfe', borderRadius: 5, cursor: 'pointer' }}>PDF</button>
+                                    </div>
+                                  </div>
                                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                                     <thead><tr>{['Tarih', 'Tutar', 'Not', ''].map(h => <th key={h} style={{ padding: '6px 10px', textAlign: 'left', color: '#aaa', fontWeight: 500, borderBottom: '1px solid rgba(15,15,15,0.06)' }}>{h}</th>)}</tr></thead>
                                     <tbody>{payments.map(p => (
@@ -720,6 +881,24 @@ export default function TenantDealersPage() {
                               ) : <p style={{ fontSize: 12, color: '#aaa' }}>Henüz ödeme kaydı yok.</p>}
                             </div>
                           )}
+
+
+                          {/* Notlar sekmesi */}
+                          {tab === 'notlar' && (
+                            <div>
+                              <textarea
+                                value={editingNotes[d.id] !== undefined ? editingNotes[d.id] : (d.notes || '')}
+                                onChange={e => setEditingNotes(prev => ({ ...prev, [d.id]: e.target.value }))}
+                                placeholder="Bu bayi hakkında notlar, özel koşullar, hatırlatmalar..."
+                                rows={5}
+                                style={{ width: '100%', padding: '10px 12px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, outline: 'none', resize: 'vertical', boxSizing: 'border-box' as const }}
+                              />
+                              <button onClick={() => saveNotes(d.id)} disabled={savingNotes === d.id}
+                                style={{ marginTop: 8, padding: '7px 18px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 500, cursor: savingNotes === d.id ? 'not-allowed' : 'pointer', opacity: savingNotes === d.id ? 0.5 : 1 }}>
+                                {savingNotes === d.id ? 'Kaydediliyor...' : 'Kaydet'}
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}
@@ -730,6 +909,108 @@ export default function TenantDealersPage() {
           </table>
         </div>
 
+
+      {/* Manuel Sipariş Modal */}
+      {showManualOrder && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={e => { if (e.target === e.currentTarget) setShowManualOrder(null) }}>
+          <div style={{ background: 'white', borderRadius: 14, padding: 28, width: '100%', maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div style={{ fontFamily: 'Georgia, serif', fontSize: 19 }}>Manuel Sipariş — {dealers.find(d => d.id === showManualOrder)?.name}</div>
+              <button onClick={() => setShowManualOrder(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1 }}>×</button>
+            </div>
+
+            {/* Ürün listesi */}
+            <div style={{ marginBottom: 14, maxHeight: 200, overflowY: 'auto', border: '1px solid rgba(15,15,15,0.08)', borderRadius: 8 }}>
+              {products.length === 0 ? (
+                <div style={{ padding: 20, textAlign: 'center', color: '#aaa', fontSize: 13 }}>Ürün bulunamadı</div>
+              ) : products.map((p: any) => {
+                const inCart = manualOrderLines.find(l => l.product_id === p.id)
+                const price = manualOrderCustomPrices[p.id] ?? p.base_price
+                return (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 12px', borderBottom: '1px solid rgba(15,15,15,0.05)' }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: '#888' }}>₺{Number(price).toLocaleString('tr-TR')}/{p.unit}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {inCart && (
+                        <>
+                          <button onClick={() => setManualOrderLines(prev => prev.map(l => l.product_id === p.id ? { ...l, qty: Math.max(1, l.qty - 1) } : l))}
+                            style={{ width: 24, height: 24, border: '1px solid rgba(15,15,15,0.15)', borderRadius: 5, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                          <input type="number" min={1} value={inCart.qty}
+                            onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 1) setManualOrderLines(prev => prev.map(l => l.product_id === p.id ? { ...l, qty: v } : l)) }}
+                            style={{ width: 40, height: 24, border: '1px solid rgba(15,15,15,0.15)', borderRadius: 5, textAlign: 'center', fontSize: 12, outline: 'none' }} />
+                          <button onClick={() => setManualOrderLines(prev => prev.map(l => l.product_id === p.id ? { ...l, qty: l.qty + 1 } : l))}
+                            style={{ width: 24, height: 24, border: '1px solid rgba(15,15,15,0.15)', borderRadius: 5, background: 'white', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                          <button onClick={() => setManualOrderLines(prev => prev.filter(l => l.product_id !== p.id))}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontSize: 16, padding: '0 2px' }}>×</button>
+                        </>
+                      )}
+                      {!inCart && (
+                        <button onClick={() => setManualOrderLines(prev => [...prev, { product_id: p.id, qty: 1 }])}
+                          style={{ padding: '4px 12px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 5, fontSize: 12, cursor: 'pointer' }}>Ekle</button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Siparis veren */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+              <select value={manualOrdererRole} onChange={e => setManualOrdererRole(e.target.value)}
+                style={{ flex: 1, padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 7, fontSize: 13, outline: 'none' }}>
+                <option value="">— Görev —</option>
+                <option value="Patron">Patron</option>
+                <option value="Genel Müdür">Genel Müdür</option>
+                <option value="Satınalma">Satınalma</option>
+                <option value="Diğer">Diğer</option>
+              </select>
+              <input type="text" value={manualOrdererName} onChange={e => setManualOrdererName(e.target.value)}
+                placeholder="Sipariş Veren Ad Soyad"
+                style={{ flex: 2, padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 7, fontSize: 13, outline: 'none' }} />
+            </div>
+
+            {/* Şube */}
+            {(branches[showManualOrder] || []).length > 0 && (
+              <select value={manualOrderBranch} onChange={e => setManualOrderBranch(e.target.value)}
+                style={{ width: '100%', padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 7, fontSize: 13, outline: 'none', marginBottom: 10 }}>
+                <option value="">— Teslimat şubesi —</option>
+                {(branches[showManualOrder] || []).map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            )}
+
+            {/* Not */}
+            <input type="text" value={manualOrderNote} onChange={e => setManualOrderNote(e.target.value)}
+              placeholder="Sipariş notu (opsiyonel)"
+              style={{ width: '100%', padding: '8px 10px', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 7, fontSize: 13, outline: 'none', marginBottom: 14, boxSizing: 'border-box' as const }} />
+
+            {manualOrderLines.length > 0 && (
+              <div style={{ background: '#f5f2ec', borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 13 }}>
+                {manualOrderLines.map(l => {
+                  const p = products.find(x => x.id === l.product_id) as any
+                  const price = manualOrderCustomPrices[l.product_id] ?? p?.base_price ?? 0
+                  return p ? <div key={l.product_id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}><span>{p.name} × {l.qty}</span><span>₺{(price * l.qty).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span></div> : null
+                })}
+                <div style={{ borderTop: '1px solid rgba(15,15,15,0.1)', paddingTop: 8, marginTop: 4, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Toplam</span>
+                  <span>₺{manualOrderLines.reduce((s, l) => { const p = products.find(x => x.id === l.product_id) as any; const pr = manualOrderCustomPrices[l.product_id] ?? p?.base_price ?? 0; return s + pr * l.qty * (1 + ((p?.vat_rate || 0) / 100)) }, 0).toLocaleString('tr-TR', { maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowManualOrder(null)}
+                style={{ padding: '9px 18px', background: 'transparent', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, fontSize: 13, cursor: 'pointer' }}>İptal</button>
+              <button onClick={saveManualOrder} disabled={savingManualOrder || !manualOrderLines.length}
+                style={{ padding: '9px 22px', background: '#0f0f0f', color: 'white', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: (!manualOrderLines.length || savingManualOrder) ? 'not-allowed' : 'pointer', opacity: (!manualOrderLines.length || savingManualOrder) ? 0.5 : 1 }}>
+                {savingManualOrder ? 'Kaydediliyor...' : 'Siparişi Kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </div>
   )

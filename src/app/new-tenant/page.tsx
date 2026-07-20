@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
@@ -13,6 +13,9 @@ export default function NewTenantPage() {
   const [module, setModule] = useState('dealer_orders')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [host, setHost] = useState('')
+
+  useEffect(() => { setHost(window.location.host) }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -79,7 +82,7 @@ export default function NewTenantPage() {
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>URL Adı</label>
             <div style={{ display: 'flex', alignItems: 'center', border: '1px solid rgba(15,15,15,0.15)', borderRadius: 8, overflow: 'hidden' }}>
-              <span style={{ padding: '10px 12px', background: '#f5f2ec', fontSize: 13, color: '#888', whiteSpace: 'nowrap' }}>nexerp.com/</span>
+              <span style={{ padding: '10px 12px', background: '#f5f2ec', fontSize: 13, color: '#888', whiteSpace: 'nowrap' }}>{host}/</span>
               <input type="text" value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
                 required placeholder="ankara-dagitim" style={{ ...inputStyle, border: 'none', borderRadius: 0 }} />
             </div>

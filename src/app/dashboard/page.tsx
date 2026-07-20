@@ -11,8 +11,9 @@ export default function PlatformDashboard() {
   const [profile, setProfile] = useState<any>(null)
   const [tenants, setTenants] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [host, setHost] = useState('')
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { loadData(); setHost(window.location.host) }, [])
 
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser()
@@ -80,7 +81,7 @@ export default function PlatformDashboard() {
               <div key={t.id} style={{ background: 'white', border: '1px solid rgba(15,15,15,0.1)', borderRadius: 14, padding: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
                 <div>
                   <div style={{ fontWeight: 500, fontSize: 16, marginBottom: 4 }}>{t.name}</div>
-                  <div style={{ fontSize: 12, color: '#888', fontFamily: 'monospace' }}>nexerp.com/{t.slug}</div>
+                  <div style={{ fontSize: 12, color: '#888', fontFamily: 'monospace' }}>{host}/{t.slug}</div>
                   <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                     <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: '#f0fdf4', color: '#16a34a', fontWeight: 500 }}>
                       {moduleLabels[t.module] || t.module}

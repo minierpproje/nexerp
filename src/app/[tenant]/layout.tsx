@@ -1,14 +1,25 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
+import TenantSidebar from '@/components/TenantSidebar'
+
+const NO_SIDEBAR_SECTIONS = ['login', 'register', 'onboard', 'orders', 'branches', 'profile']
 
 export default function TenantLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const params = useParams()
+  const slug = (params?.tenant as string) || ''
   const supabase = createClient()
   const [loggedIn, setLoggedIn] = useState(false)
+  const [modules, setModules] = useState<string[]>([])
+
+  const segments = (pathname || '').split('/').filter(Boolean)
+  const section = segments[1] || ''
+  const showSidebar = !!section && !NO_SIDEBAR_SECTIONS.includes(section)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -19,6 +30,13 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!showSidebar || !slug) return
+    supabase.from('tenants').select('modules').eq('slug', slug).single().then(({ data }) => {
+      setModules(data?.modules || [])
+    })
+  }, [showSidebar, slug])
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -47,7 +65,12 @@ export default function TenantLayout({ children }: { children: React.ReactNode }
           </button>
         )}
       </div>
-      {children}
+      {showSidebar ? (
+        <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+          <TenantSidebar slug={slug} modules={modules} pathname={pathname || ''} />
+          <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+        </div>
+      ) : children}
     </>
   )
 }
